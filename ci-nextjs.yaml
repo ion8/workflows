@@ -47,7 +47,7 @@ jobs:
         run: yarn start &
 
       - name: Check for codeceptjs
-        run: yarn run which codeceptjs || echo "::set-env name=HAVE_CODECEPTJS::true"
+        run: '! yarn run which codeceptjs || echo "HAVE_CODECEPTJS=true" >> $GITHUB_ENV'
 
       - name: Run tests
         if: env.HAVE_CODECEPTJS == 'true'
