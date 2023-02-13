@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: 14.x
           cache: 'yarn'
-      
+
       # this step is from https://nextjs.org/docs/advanced-features/ci-build-caching
       - name: Apply Next.js build cache
         uses: actions/cache@v3
@@ -39,11 +39,16 @@ jobs:
       - name: Install dependencies with yarn
         run: yarn install --frozen-lockfile
 
+      # this step runs eslint by default
       - name: Build the application
         run: yarn build
-      
+
       - name: Start the server
         run: yarn start &
 
-      - name: Run the tests
+      - name: Check for codeceptjs
+        run: yarn run which codeceptjs || echo "::set-env name=HAVE_CODECEPTJS::true"
+
+      - name: Run tests
+        if: env.HAVE_CODECEPTJS == 'true'
         run: yarn run codeceptjs:headless

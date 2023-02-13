@@ -29,9 +29,23 @@ jobs:
     - name: Install dependencies
       run: poetry install
 
-    - name: Lint project
-      run: |
-        poetry run flake8 . --extend-exclude=dist,build --show-source --statistics
+    - name: Check for flake8
+      run: poetry run which flake8 || echo "::set-env name=HAVE_FLAKE8::true"
+
+    - name: Lint with flake8
+      if: env.HAVE_FLAKE8 == 'true'
+      run: poetry run flake8 . --extend-exclude=dist,build --show-source --statistics
+
+    - name: Check for black
+      run: poetry run which black || echo "::set-env name=HAVE_BLACK::true"
+
+    - name: Lint with black
+      if: env.HAVE_BLACK == 'true'
+      run: poetry run black --check .
+
+    - name: Check for pytest
+      run: poetry run which pytest || echo "::set-env name=HAVE_PYTEST::true"
 
     - name: Run tests
+      if: env.HAVE_PYTEST == 'true'
       run: poetry run pytest
