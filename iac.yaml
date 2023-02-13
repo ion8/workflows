@@ -1,0 +1,35 @@
+name: Lint Terraform files
+
+on:
+  pull_request:
+    branches: ['main']
+    types:
+        - opened
+        - reopened
+        - synchronize
+        - ready_for_review
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+    - uses: actions/checkout@v3
+
+    - name: Cache tflint plugins
+      uses: actions/cache@v2
+      with:
+        path: ~/.tflint.d/plugins
+        key: ${{ matrix.os }}-tflint-${{ hashFiles('.tflint.hcl') }}
+
+    - name: Setup TFLint
+      uses: terraform-linters/setup-tflint@v2
+      with:
+        tflint_version: v0.38.1
+
+    - name: Initialize TFLint
+      run: tflint --init
+
+    - name: Run TFLint
+      run: tflint -f compact
