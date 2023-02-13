@@ -1,0 +1,37 @@
+name: Lint and test
+
+on:
+  pull_request:
+    branches: ['main']
+    types:
+        - opened
+        - reopened
+        - synchronize
+        - ready_for_review
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v3
+
+    - name: Set up Poetry
+      run: pipx install poetry
+
+    - name: Set up Python with poetry cache
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'poetry'
+
+    - name: Install dependencies
+      run: poetry install
+
+    - name: Lint project
+      run: |
+        poetry run flake8 . --extend-exclude=dist,build --show-source --statistics
+
+    - name: Run tests
+      run: poetry run pytest
