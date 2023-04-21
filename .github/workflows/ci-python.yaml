@@ -1,0 +1,45 @@
+name: Lint and test
+
+on:
+  workflow_call:
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v3
+
+    - name: Set up Poetry
+      run: pipx install poetry
+
+    - name: Set up Python with poetry cache
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'poetry'
+
+    - name: Install dependencies
+      run: poetry install
+
+    - name: Check for flake8
+      run: '! poetry run which flake8 || echo "HAVE_FLAKE8=true" >> $GITHUB_ENV'
+
+    - name: Lint with flake8
+      if: env.HAVE_FLAKE8 == 'true'
+      run: poetry run flake8 . --extend-exclude=dist,build --show-source --statistics
+
+    - name: Check for black
+      run: '! poetry run which black || echo "HAVE_BLACK=true" >> $GITHUB_ENV'
+
+    - name: Lint with black
+      if: env.HAVE_BLACK == 'true'
+      run: poetry run black --check .
+
+    - name: Check for pytest
+      run: '! poetry run which pytest || echo "HAVE_PYTEST=true" >> $GITHUB_ENV'
+
+    - name: Run tests
+      if: env.HAVE_PYTEST == 'true'
+      run: poetry run pytest
