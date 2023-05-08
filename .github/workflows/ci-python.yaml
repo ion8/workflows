@@ -30,6 +30,13 @@ jobs:
       if: env.HAVE_FLAKE8 == 'true'
       run: poetry run flake8 . --extend-exclude=dist,build --show-source --statistics
 
+    - name: Check for ruff
+      run: '! poetry run which ruff || echo "HAVE_RUFF=true" >> $GITHUB_ENV'
+
+    - name: Lint with ruff
+      if: env.HAVE_RUFF == 'true'
+      uses: chartboost/ruff-action@v1
+
     - name: Check for black
       run: '! poetry run which black || echo "HAVE_BLACK=true" >> $GITHUB_ENV'
 
