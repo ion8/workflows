@@ -1,6 +1,8 @@
-# workflows
-A repository for reusable common workflows for the ion8 organisation.
+![Workflows Banner](./header.svg)
 
+This repo contains our reusable workflows, used in repositories across the organization.
+
+# ✒️ Linting
 ## `ci-next.js.yaml`
 Build and test a Next.js application that uses yarn. Uses caching for the yarn downloads and Next.js build artifacts where possible.
 
@@ -11,5 +13,10 @@ Lint and test a Python application that uses poetry, flake8 and pytest. Uses cac
 
 If flake8, black, or pytest are not in the dependencies, their steps will be skipped.
 
-## `iac.yaml`
-Check infrastructure-as-code Terraform files for issues. Uses caching for the Terraform plugins.
+# 🔐 Security
+We'll be adding security workflows soon™️.
+
+# ⭐ Compliance
+
+## `soup.yaml`
+Work in progress, check back later.
