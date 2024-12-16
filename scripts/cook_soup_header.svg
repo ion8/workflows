@@ -40,17 +40,17 @@
            L1280,360 L0,360 Z" />
 
   <!-- Central Title Text -->
-  <text x="100%" y="100%" dominant-baseline="middle" text-anchor="middle"
+  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
         font-family="Helvetica, Arial, sans-serif"
-        font-size="64" font-weight="bold"
+        font-size="120" font-weight="bold"
         fill="#ffffff" filter="url(#shadow)">
     S O U P
   </text>
 
   <!-- Sub-Title -->
-  <text x="80%" y="80%" dominant-baseline="middle" text-anchor="middle"
+  <text x="50%" y="62%" dominant-baseline="middle" text-anchor="middle"
         font-family="Helvetica, Arial, sans-serif"
-        font-size="24" font-weight="normal"
+        font-size="50" font-weight="normal"
         fill="#ffffff">
     Software of Unknown Pedigree
   </text>
