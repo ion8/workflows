@@ -77,6 +77,7 @@ jobs:
         run: |
           rm -rf .workflowsRepo
           rm licenses-npm.json
+          rm -rf node_modules
 
       # -----------------------
       # 9 Check for Changes to SOUP.md
