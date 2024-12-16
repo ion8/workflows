@@ -1,4 +1,4 @@
-![header image](https://github.com/ion8/workflows/blob/fed2abdeb833c84350a1b016a7fde8c0d43604e8/scripts/cook_soup_header.svg)
+![header image](https://github.com/ion8/workflows/blob/9d6cd6d9d7306409ccf590739ffef6c8b46925ca/scripts/cook_soup_header.svg)
 
 # SOUP (Software of Unknown Pedigree)
 
