@@ -398,7 +398,7 @@ def main():
         )
 
     # Let's grab our template file and insert the table into that.
-    with open("cook_soup_template.md", "r", encoding="utf-8") as soup_template:
+    with open(".workflowsRepo/scripts/cook_soup_template.md", "r", encoding="utf-8") as soup_template:
         template_content = soup_template.read()
 
     # Suppose table_str is the multi-line Markdown table you generated
