@@ -8,8 +8,10 @@ on:
         type: string
         default: "main"
 
+# Allow the workflow to write to the target repository and create pull requests.
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   generate-soup:
