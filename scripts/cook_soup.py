@@ -401,14 +401,8 @@ def main():
     with open(".workflowsRepo/scripts/cook_soup_template.md", "r", encoding="utf-8") as soup_template:
         template_content = soup_template.read()
 
-    # Suppose table_str is the multi-line Markdown table you generated
-    final_content = template_content.replace("{{DEPENDENCY_TABLE}}", "\n".join(md_lines))
-
-    # Prepend the header to the template
-    with open(".workflowsRepo/scripts/cook_soup_header.svg", "r", encoding="utf-8") as svg_header:
-        final_content = svg_header.read() + "\n" + final_content
-
     # Write the final content to SOUP.md
+    final_content = template_content.replace("{{DEPENDENCY_TABLE}}", "\n".join(md_lines))
     with open("SOUP.md", "w", encoding="utf-8") as out_file:
         out_file.write(final_content)
 
