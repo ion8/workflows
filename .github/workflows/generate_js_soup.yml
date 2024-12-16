@@ -1,0 +1,81 @@
+name: Generate SOUP Document (JavaScript)
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        required: false
+        type: string
+        default: "main"
+
+permissions:
+  contents: write
+
+jobs:
+  generate-soup:
+    runs-on: ubuntu-latest
+    steps:
+      # -----------------------
+      # 1. Check out target repository
+      # -----------------------
+      - name: Check out target repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.branch }}
+
+      # -----------------------
+      # 2. Check out the workflows repo to get generate_soup.py
+      # -----------------------
+      - name: Check out workflows repo
+        uses: actions/checkout@v3
+        with:
+          repository: ion8/workflows
+          ref: main
+          path: .workflowsRepo
+
+      # -----------------------
+      # 3. Set up Node.js for the JS project
+      # -----------------------
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      # -----------------------
+      # 4. Install npm dependencies
+      # -----------------------
+      - name: Install npm dependencies
+        run: npm install
+
+      # -----------------------
+      # 5. Generate licenses-npm.json with license-checker
+      #    (license-checker must already be a dev dependency in package.json)
+      # -----------------------
+      - name: Run license-checker
+        run: npx license-checker --json > licenses-npm.json
+
+      # -----------------------
+      # 6. Since we need Python for cook_soup.py, set up Python
+      # -----------------------
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # -----------------------
+      # 7. Run the Python script to generate SOUP.md
+      # -----------------------
+      - name: Generate SOUP.md
+        run: python .workflowsRepo/.github/scripts/cook_soup.py
+
+      # -----------------------
+      # 8. Commit and push changes if SOUP.md changed
+      # -----------------------
+      - name: Commit changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add soup.md
+            git commit -m "🤖 SOUP.md automatically updated by robots."
+            git push origin HEAD:${{ inputs.branch }}
