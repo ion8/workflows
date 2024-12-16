@@ -62,7 +62,7 @@ jobs:
       # 5. Run the Python script to generate soup.md.
       # -----------------------
       - name: Generate soup.md
-        run: python .workflowsRepo/.github/scripts/cook_soup.py
+        run: python .workflowsRepo/scripts/cook_soup.py
 
       # -----------------------
       # 6. Commit and push changes if soup.md changed
