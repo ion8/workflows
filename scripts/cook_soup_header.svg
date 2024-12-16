@@ -48,7 +48,7 @@
   </text>
 
   <!-- Sub-Title -->
-  <text x="50%" y="62%" dominant-baseline="middle" text-anchor="middle"
+  <text x="50%" y="70%" dominant-baseline="middle" text-anchor="middle"
         font-family="Helvetica, Arial, sans-serif"
         font-size="50" font-weight="normal"
         fill="#ffffff">
