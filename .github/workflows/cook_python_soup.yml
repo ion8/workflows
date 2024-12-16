@@ -91,23 +91,11 @@ jobs:
           BRANCH_NAME: update-soup-md-${{ github.run_id }}
 
       # -----------------------
-      # 8. Check for Existing PR
-      # -----------------------
-      - name: Check for Existing PR
-        if: steps.changes.outputs.no_changes == 'false'
-        id: pr_check
-        uses: peter-evans/find-pull-request@v3
-        with:
-          head: update-soup-md-${{ github.run_id }}
-          base: ${{ inputs.branch }}
-          repo: ${{ github.repository }}
-
-      # -----------------------
-      # 9. Create Pull Request
+      # 8. Create Pull Request
       # -----------------------
       - name: Create Pull Request
         id: create_pr
-        if: steps.changes.outputs.no_changes == 'false' && steps.pr_check.outputs.pull_request == ''
+        if: steps.changes.outputs.no_changes == 'false'
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
