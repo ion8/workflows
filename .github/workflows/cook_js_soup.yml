@@ -54,7 +54,7 @@ jobs:
       #    (license-checker must already be a dev dependency in package.json)
       # -----------------------
       - name: Run license-checker
-        run: npx license-checker --json > licenses-npm.json
+        run: npx license-checker --production --direct --json > licenses-npm.json
 
       # -----------------------
       # 6. Since we need Python for cook_soup.py, set up Python
