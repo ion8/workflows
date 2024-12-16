@@ -75,7 +75,7 @@ def get_license_object(license_id: str) -> License:
     :param license_id: e.g. "mit", "apache-2.0", "unknown"
     :return: License instance
     """
-    normalized = license_id.lower().strip()
+    normalized = license_id.casefold().strip()
     return LICENSE_MAPPING.get(normalized, LICENSE_MAPPING["unknown"])
 
 def normalize_license(license_str: str) -> str:
@@ -84,7 +84,7 @@ def normalize_license(license_str: str) -> str:
     """
     if not license_str:
         return "unknown"
-    return license_str.lower().strip()
+    return license_str.casefold().strip()
 
 
 def process_poetry_licenses(file_path):
@@ -375,10 +375,16 @@ def main():
         license_obj = get_license_object(entry["license"])
         license_req = "Include License File" if license_obj.requires_license_file else "No License File Required"
         if license_obj.is_non_commercial_only:
-            license_req += ", NON-COMMERCIAL USE ONLY (Red Flag)"
+            license_req += ", NON-COMMERCIAL USE ONLY"
 
         maintainer = parse_maintainer_from_url(entry["url"])
-        risk_level, notes = assess_risk(entry["url"], entry["version"])
+        risk_level, notes = assess_risk(entry["url"], entry["version"]) 
+
+        # If it's an unknown license, manual review is required.
+        # Possibly the license should just be added to this file.
+        if entry["license"] == "unknown":
+            risk_level = "High"
+            notes = "Unknown License, Manual Review Required"
 
         md_lines.append(
             f"| {entry['name']} "

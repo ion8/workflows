@@ -20,8 +20,8 @@ We'll be adding security workflows soon™️.
 For compliance reasons, we have templates that will generate a list of SOUP (Software of Unknown Pedigree). This works as follows:
 
 #### We have two workflows stored in `.github/workflows/`.
-- `generate-soup-python.yml`
-- `generate-soup-js.yml`
+- `cook-python-soup.yml`
+- `cook-js-soup.yml`
 
 
 #### Both will:
@@ -34,14 +34,16 @@ For compliance reasons, we have templates that will generate a list of SOUP (Sof
 
 ## How do I get SOUP CI/CD working in my repo?
 
-In each target repository, you create a minimal workflow file that triggers on dependency changes and calls the reusable workflow from the `workflows` repository.
+In each target repository, you need to do two things:
+- Add the license dependency this workflow depends on. (That's `pip-licenses` for Python and `license-checker` for JavaScript)
+- Create a minimal workflow file that triggers on dependency changes and calls the reusable workflow from the `workflows` repository. See example below.
 
 ### Python Repository Example
 
-For a Python repo using Poetry, create `.github/workflows/run-generate-soup.yml`:
+For a Python repo using Poetry, create `.github/workflows/cook-soup-delicious.yml`:
 
 ```yaml
-name: Run Generate SOUP (Python)
+name: Cook up some delicious SOUP (Python)
 
 on:
   # Trigger when dependencies change
@@ -56,23 +58,29 @@ on:
       - 'poetry.lock'
       - 'pyproject.toml'
 
+  # Also allow manual triggering
+  workflow_dispatch: 
+    inputs: 
+      branch: 
+        type: string 
+        default: "main"
+
 jobs:
   call-python-soup:
     # Calls the reusable workflow from the workflows repo
-    uses: ion8/workflows/.github/workflows/generate-soup-python.yml@main
+    uses: ion8/workflows/.github/workflows/cook_python_soup.yml@main
     with:
       branch: 'main'
-
 ```
 _______
 
 
 ### JavaScript Repository Example
 
-For a JS repo using npm, create `.github/workflows/run-generate-soup.yml`:
+For a JS repo using npm, create `.github/workflows/cook-soup-delicious.yml`:
 
 ```yaml
-name: Run Generate SOUP (JavaScript)
+name: Cook up some delicious SOUP (JavaScript)
 
 on:
   # Trigger when dependencies change (npm lock file)
@@ -85,15 +93,16 @@ on:
     paths:
       - 'package-lock.json'
 
+  # Also allow manual triggering
+  workflow_dispatch: 
+    inputs: 
+      branch: 
+        type: string 
+        default: "main"
+
 jobs:
   call-js-soup:
-    uses: ion8/workflows/.github/workflows/generate-soup-js.yml@main
+    uses: ion8/workflows/.github/workflows/cook_js_soup.yml@main
     with:
       branch: 'main'
-
 ```
-## Ensuring Commit Permissions
-
-- By specifying `permissions: contents: write` in the reusable workflows, the `GITHUB_TOKEN` automatically has sufficient permissions to commit and push changes to `soup.md`.
-- If you have branch protection rules, ensure that the `GITHUB_TOKEN` can bypass them or that the workflow runs under conditions where it can push successfully.
-- Confirm that the default `GITHUB_TOKEN` permissions in your organization are not restricted. The default settings typically allow committing with `contents: write`.
