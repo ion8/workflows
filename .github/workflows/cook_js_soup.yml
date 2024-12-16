@@ -71,7 +71,15 @@ jobs:
         run: python .workflowsRepo/scripts/cook_soup.py
 
       # -----------------------
-      # 8. Check for Changes to SOUP.md
+      # 8. Clean Up Residual Files and Directories
+      # -----------------------
+      - name: Clean Up Unwanted Files
+        run: |
+          rm -rf .workflowsRepo
+          rm licenses-poetry.json
+
+      # -----------------------
+      # 9 Check for Changes to SOUP.md
       # -----------------------
       - name: Check for Changes to SOUP.md
         id: changes
@@ -87,19 +95,16 @@ jobs:
           fi
 
       # -----------------------
-      # 9. Commit Changes
+      # 10. Commit Changes
       # -----------------------
       - name: Commit Changes
         if: steps.changes.outputs.no_changes == 'false'
         run: |
           git commit -m "🤖 SOUP.md automatically updated by robots."
-          BRANCH_NAME=update-soup-md-$(date +%s)
-          git push origin HEAD:$BRANCH_NAME
-        env:
-          BRANCH_NAME: update-soup-md-${{ github.run_id }}
+          git push origin HEAD:update-soup-md-${{ github.run_id }}
 
       # -----------------------
-      # 10. Create Pull Request
+      # 11. Create Pull Request
       # -----------------------
       - name: Create Pull Request
         id: create_pr
