@@ -406,7 +406,7 @@ def main():
 
     # Prepend the header to the template
     with open(".workflowsRepo/scripts/cook_soup_header.svg", "r", encoding="utf-8") as svg_header:
-        final_content = "\n" + svg_header.read() + "\n" + final_content
+        final_content = svg_header.read() + "\n" + final_content
 
     # Write the final content to SOUP.md
     with open("SOUP.md", "w", encoding="utf-8") as out_file:

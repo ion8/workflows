@@ -1,3 +1,5 @@
+
+
 # SOUP (Software of Unknown Pedigree)
 
 This document provides a list of third-party dependencies and their associated risks. The aim is to ensure that we track and manage all unknown or partially verified software libraries. This approach helps maintain compliance, security, and licensing clarity.
