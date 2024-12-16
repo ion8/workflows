@@ -76,7 +76,7 @@ jobs:
       - name: Clean Up Unwanted Files
         run: |
           rm -rf .workflowsRepo
-          rm licenses-poetry.json
+          rm licenses-npm.json
 
       # -----------------------
       # 9 Check for Changes to SOUP.md

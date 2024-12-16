@@ -88,10 +88,14 @@ on:
     branches: [ main ]
     paths:
       - 'package-lock.json'
+      - 'package.json'
+      - 'yarn.lock'
   pull_request:
     branches: [ main ]
     paths:
       - 'package-lock.json'
+      - 'package.json'
+      - 'yarn.lock'
 
   # Also allow manual triggering
   workflow_dispatch: 
