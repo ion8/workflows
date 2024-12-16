@@ -1,0 +1,78 @@
+name: Generate SOUP Document (Python)
+
+on:
+  # This workflow is reusable and will be called using `workflow_call` from target repos.
+  workflow_call:
+    inputs:
+      branch:
+        required: false
+        type: string
+        default: "main"
+
+permissions:
+  # Allow writing to contents so we can push changes.
+  contents: write
+
+jobs:
+  generate-soup:
+    runs-on: ubuntu-latest
+    steps:
+      # -----------------------
+      # 1. Check out the target repository code (the repo that calls this workflow)
+      # -----------------------
+      - name: Check out target repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.branch }}
+
+      # -----------------------
+      # 2. Check out the workflows repository to access the Python script
+      #    and store it in a subdirectory for reference.
+      # -----------------------
+      - name: Check out workflows repo
+        uses: actions/checkout@v3
+        with:
+          repository: ion8/workflows
+          # Use the same ref or main branch of the workflows repo
+          # if you have version tags, you can specify them here.
+          ref: main
+          path: .workflowsRepo
+
+      # -----------------------
+      # 3. Set up Python and Poetry for the target repo
+      # -----------------------
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies (Poetry)
+        run: poetry install --no-root
+
+      # -----------------------
+      # 4. Generate licenses-poetry.json using pip-licenses (must already be a dev dependency in pyproject.toml)
+      # -----------------------
+      - name: Generate Poetry licenses
+        run: poetry run pip-licenses --format=json --with-url --output-file=licenses-poetry.json
+
+      # -----------------------
+      # 5. Run the Python script to generate soup.md.
+      # -----------------------
+      - name: Generate soup.md
+        run: python .workflowsRepo/.github/scripts/cook_soup.py
+
+      # -----------------------
+      # 6. Commit and push changes if soup.md changed
+      # -----------------------
+      - name: Commit changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add SOUP.md
+            git commit -m "🤖 SOUP.md automatically updated by robots."
+            git push origin HEAD:${{ inputs.branch }}
+          fi
