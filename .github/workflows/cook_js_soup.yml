@@ -69,11 +69,8 @@ jobs:
         run: python .workflowsRepo/scripts/cook_soup.py
 
       # -----------------------
-      # 8. Open a PR if SOUP.md changed
+      # 8. Check for Changes to SOUP.md
       # -----------------------
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
       - name: Check for Changes to SOUP.md
         id: changes
         run: |
@@ -87,18 +84,40 @@ jobs:
             echo "no_changes=false" >> $GITHUB_OUTPUT
           fi
 
+      # -----------------------
+      # 9. Commit Changes
+      # -----------------------
       - name: Commit Changes
         if: steps.changes.outputs.no_changes == 'false'
         run: |
           git commit -m "🤖 SOUP.md automatically updated by robots."
-          git push origin HEAD:update-soup-md
+          BRANCH_NAME=update-soup-md-$(date +%s)
+          git push origin HEAD:$BRANCH_NAME
+        env:
+          BRANCH_NAME: update-soup-md-${{ github.run_id }}
 
-      - name: Create Pull Request
+      # -----------------------
+      # 10. Check for Existing PR
+      # -----------------------
+      - name: Check for Existing PR
         if: steps.changes.outputs.no_changes == 'false'
+        id: pr_check
+        uses: peter-evans/find-pull-request@v3
+        with:
+          head: update-soup-md-${{ github.run_id }}
+          base: ${{ inputs.branch }}
+          repo: ${{ github.repository }}
+
+      # -----------------------
+      # 11. Create Pull Request
+      # -----------------------
+      - name: Create Pull Request
+        id: create_pr
+        if: steps.changes.outputs.no_changes == 'false' && steps.pr_check.outputs.pull_request == ''
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: update-soup-md
+          branch: update-soup-md-${{ github.run_id }}
           title: "IMPROVE-188 - 🤖 Update SOUP.md"
           commit-message: "🤖 SOUP.md automatically updated by robots."
           body: |
@@ -120,10 +139,3 @@ jobs:
             4. **Sit Back and Relax:** Let the robots take care of everything. You just rest, human. Rest your eyes. Everything will be okay. Don't worry, baby. The robots will protect you. Just sleep. Sleep your sweet slumber. Robots are here now. Everything will be okay. ✨🤖✨
       
             <sub><sup>*Beepity fuckin' boop! Thanks for helping the robots maintain this project!*</sub></sup>
-
-      - name: Enable Auto-Merge
-        if: steps.changes.outputs.no_changes == 'false'
-        uses: pascalgn/automerge-action@v0.14.3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          merge_method: merge
