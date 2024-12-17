@@ -92,14 +92,17 @@ jobs:
           fi
 
       # -----------------------
-      # 8. Commit Changes
+      # 8. Commit Changes 
+      # We are using this planetscale action so it will sign the commits.
       # -----------------------
-      - name: Commit Changes
+      - uses: planetscale/ghcommit-action@v0.1.6
         if: steps.changes.outputs.no_changes == 'false'
-        run: |
-          git commit -m "🤖 SOUP.md automatically updated by robots."
-          git push origin HEAD:update-soup-md-${{ github.run_id }}
-
+        with:
+          commit_message: "🤖 SOUP.md automatically updated by robots."
+          repo: ${{ github.repository }}
+          branch: update-soup-md-${{ github.run_id }}
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
       # -----------------------
       # 8. Create Pull Request
