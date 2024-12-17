@@ -78,6 +78,8 @@ jobs:
           rm -rf .workflowsRepo
           rm licenses-npm.json
           rm -rf node_modules
+          rm package-lock.json
+          rm yarn.lock
 
       # -----------------------
       # 9 Check for Changes to SOUP.md

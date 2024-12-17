@@ -73,6 +73,7 @@ jobs:
         run: |
           rm -rf .workflowsRepo
           rm licenses-poetry.json
+          rm poetry.lock
 
       # -----------------------
       # 7. Check for Changes to SOUP.md
