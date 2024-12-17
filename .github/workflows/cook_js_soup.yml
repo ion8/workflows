@@ -112,7 +112,6 @@ jobs:
           commit-message: "🤖 SOUP.md automatically updated by robots."
           sign-commits: true   # Sign the commits as github-actions[bot] using GITHUB_TOKEN
           delete-branch: true  # Delete the update-soup-md branch if there's no current PR open for it (prevents duplicates)
-          team-reviewers: python-maintainers
           body: |
             ## 🤖 Beep Boop! Automated PR Created By Robots!
       
