@@ -106,7 +106,7 @@ jobs:
         with:
           commit_message: "🤖 SOUP.md automatically updated by robots."
           repo: ${{ github.repository }}
-          branch: update-soup-md-${{ github.run_id }}
+          branch: update-soup-md
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
@@ -119,9 +119,10 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: update-soup-md-${{ github.run_id }}
+          branch: update-soup-md
           title: "IMPROVE-188 - 🤖 Update SOUP.md"
-          commit-message: "🤖 SOUP.md automatically updated by robots."
+          delete-branch: true
+          team-reviewers: javascript-maintainers
           body: |
             ## 🤖 Beep Boop! Automated PR Created By Robots!
       
@@ -141,3 +142,4 @@ jobs:
             4. **Sit Back and Relax:** Let the robots take care of everything. You just rest, human. Rest your eyes. Everything will be okay. Don't worry, baby. The robots will protect you. Just sleep. Sleep your sweet slumber. Robots are here now. Everything will be okay. ✨🤖✨
       
             <sub><sup>*Beepity fuckin' boop! Thanks for helping the robots maintain this project!*</sub></sup>
+          

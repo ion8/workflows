@@ -100,7 +100,7 @@ jobs:
         with:
           commit_message: "🤖 SOUP.md automatically updated by robots."
           repo: ${{ github.repository }}
-          branch: update-soup-md-${{ github.run_id }}
+          branch: update-soup-md
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
@@ -113,9 +113,10 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: update-soup-md-${{ github.run_id }}
+          branch: update-soup-md
           title: "IMPROVE-188 - 🤖 Update SOUP.md"
-          commit-message: "🤖 SOUP.md automatically updated by robots."
+          delete-branch: true
+          team-reviewers: python-maintainers
           body: |
             ## 🤖 Beep Boop! Automated PR Created By Robots!
       
