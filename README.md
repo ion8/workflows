@@ -52,11 +52,6 @@ on:
     paths:
       - 'poetry.lock'
       - 'pyproject.toml'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'poetry.lock'
-      - 'pyproject.toml'
 
   # Also allow manual triggering
   workflow_dispatch: 
@@ -85,12 +80,6 @@ name: Cook up some delicious SOUP (JavaScript)
 on:
   # Trigger when dependencies change (npm lock file)
   push:
-    branches: [ main ]
-    paths:
-      - 'package-lock.json'
-      - 'package.json'
-      - 'yarn.lock'
-  pull_request:
     branches: [ main ]
     paths:
       - 'package-lock.json'
