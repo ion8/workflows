@@ -69,11 +69,12 @@ jobs:
       # -----------------------
       # 6. Clean Up Residual Files and Directories
       # -----------------------
-      - name: Clean Up Unwanted Files
+      - name: Clean Up Any Residual Files
         run: |
           rm -rf .workflowsRepo
-          rm licenses-poetry.json
-          rm poetry.lock
+          # Enable extended globbing, and remove all remaining files except SOUP.md
+          shopt -s extglob
+          rm -v !("SOUP.md")  
 
       # -----------------------
       # 7. Check for Changes to SOUP.md
@@ -92,19 +93,6 @@ jobs:
           fi
 
       # -----------------------
-      # 8. Commit Changes 
-      # We are using this planetscale action so it will sign the commits.
-      # -----------------------
-      - uses: planetscale/ghcommit-action@v0.1.6
-        if: steps.changes.outputs.no_changes == 'false'
-        with:
-          commit_message: "🤖 SOUP.md automatically updated by robots."
-          repo: ${{ github.repository }}
-          branch: update-soup-md
-        env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-
-      # -----------------------
       # 8. Create Pull Request
       # -----------------------
       - name: Create Pull Request
@@ -112,10 +100,11 @@ jobs:
         if: steps.changes.outputs.no_changes == 'false'
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           branch: update-soup-md
           title: "IMPROVE-188 - 🤖 Update SOUP.md"
-          delete-branch: true
+          commit-message: "🤖 SOUP.md automatically updated by robots."
+          sign-commits: true   # Sign the commits as github-actions[bot] using GITHUB_TOKEN
+          delete-branch: true  # Delete the update-soup-md branch if there's no current PR open for it (prevents duplicates)
           team-reviewers: python-maintainers
           body: |
             ## 🤖 Beep Boop! Automated PR Created By Robots!
