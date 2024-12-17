@@ -105,7 +105,7 @@ jobs:
       - name: Create Pull Request
         id: create_pr
         if: steps.changes.outputs.no_changes == 'false'
-        uses: peter-evans/create-pull-request@v5
+        uses: peter-evans/create-pull-request@v7.0.5
         with:
           branch: update-soup-md
           title: "IMPROVE-188 - 🤖 Update SOUP.md"
