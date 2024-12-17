@@ -72,9 +72,9 @@ jobs:
       - name: Clean Up Any Residual Files
         run: |
           rm -rf .workflowsRepo
-          # Enable extended globbing, and remove all remaining files except SOUP.md
-          shopt -s extglob
-          rm -v !("SOUP.md")  
+
+          # Remove all files except SOUP.md, ignoring folders
+          find . -maxdepth 1 -type f ! -name "SOUP.md" -exec rm -v {} +  
 
       # -----------------------
       # 7. Check for Changes to SOUP.md
@@ -85,6 +85,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add SOUP.md
+
           # Check if there are changes to commit
           if git diff --cached --exit-code; then
             echo "no_changes=true" >> $GITHUB_OUTPUT
