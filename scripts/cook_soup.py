@@ -78,6 +78,7 @@ def get_license_object(license_id: str) -> License:
     normalized = license_id.casefold().strip()
     return LICENSE_MAPPING.get(normalized, LICENSE_MAPPING["unknown"])
 
+
 def normalize_license(license_str: str) -> str:
     """
     Normalize a license string to lowercase. Fallback to 'unknown' if empty.
@@ -107,6 +108,7 @@ def process_poetry_licenses(file_path):
             "license": normalized
         })
     return results
+
 
 def process_npm_licenses(file_path):
     """
@@ -140,6 +142,21 @@ def process_npm_licenses(file_path):
             "license": normalized
         })
     return results
+
+
+def parse_maintainer_from_url(repo_url):
+    """
+    Parse the maintainer (owner) from a GitHub repository URL.
+    E.g. 'https://github.com/apache/commons-lang' => 'apache'
+    
+    If it doesn't match the standard pattern, returns ''.
+    """
+    pattern = r"(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/]+)\/([^\/]+)"
+    match = re.search(pattern, repo_url)
+    if match:
+        owner = match.group(1)
+        return owner
+    return ""
 
 
 def fetch_github_repo_info(owner, repo):
