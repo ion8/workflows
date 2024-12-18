@@ -142,21 +142,6 @@ def process_npm_licenses(file_path):
     return results
 
 
-def parse_maintainer_from_url(repo_url):
-    """
-    Parse the maintainer (owner) from a GitHub repository URL.
-    E.g. 'https://github.com/apache/commons-lang' => 'apache'
-    
-    If it doesn't match the standard pattern, returns ''.
-    """
-    pattern = r"(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/]+)\/([^\/]+)"
-    match = re.search(pattern, repo_url)
-    if match:
-        owner = match.group(1)
-        return owner
-    return ""
-
-
 def fetch_github_repo_info(owner, repo):
     """
     Enhanced to fetch:
@@ -348,7 +333,7 @@ def assess_risk(repo_url, local_version):
 
 def main():
     """
-    Main entry: checks for JSON files, merges results, deduplicates, writes 'soup.md'.
+    Main entry: checks for JSON files, merges results, deduplicates, writes 'SOUP.md'.
     """
     npm_file = "licenses-npm.json"
     poetry_file = "licenses-poetry.json"
@@ -367,45 +352,53 @@ def main():
             unique_map[key] = e
     final_entries = list(unique_map.values())
 
-    md_lines = []
-    md_lines.append("| Component Name | Version | GitHub Repo URL | License | License Requirements | Maintainer | Risk Level | Notes |")
-    md_lines.append("|----------------|---------|-----------------|---------|---------------------|------------|------------|-------|")
-
+    # Enrich each entry with license requirements, risk level, and notes
     for entry in final_entries:
         license_obj = get_license_object(entry["license"])
         license_req = "Include License File" if license_obj.requires_license_file else "No License File Required"
         if license_obj.is_non_commercial_only:
             license_req += ", NON-COMMERCIAL USE ONLY"
 
-        maintainer = parse_maintainer_from_url(entry["url"])
-        risk_level, notes = assess_risk(entry["url"], entry["version"]) 
+        risk_level, notes = assess_risk(entry["url"], entry["version"])
 
-        # If it's an unknown license, manual review is required.
-        # Possibly the license should just be added to this file.
+        # If it's an unknown license, manual review is required
         if entry["license"] == "unknown":
             risk_level = "High"
             notes = "Unknown License, Manual Review Required"
 
+        entry["risk_level"] = risk_level
+        entry["license_req"] = license_req
+        entry["notes"] = notes
+
+    # Custom sort by Risk Level then by component name
+    risk_priority = {"High": 1, "Medium": 2, "Low": 3}
+    final_entries.sort(
+        key=lambda e: (risk_priority.get(e["risk_level"], 999), e["name"].lower())
+    )
+
+    # Time to append the data to SOUP.md
+    md_lines = []
+    md_lines.append("| Risk Level | Component Name | Version | License | License Requirements | Notes | GitHub Repo URL |")
+    md_lines.append("|------------|---------------|---------|---------|----------------------|-------|-----------------|")
+
+    for entry in final_entries:
         md_lines.append(
+            f"| {entry['risk_level']} "
             f"| {entry['name']} "
             f"| {entry['version']} "
-            f"| {entry['url']} "
             f"| {entry['license']} "
-            f"| {license_req} "
-            f"| {maintainer} "
-            f"| {risk_level} "
-            f"| {notes} |"
+            f"| {entry['license_req']} "
+            f"| {entry['notes']} "
+            f"| {entry['url']} |"
         )
 
-    # Let's grab our template file and insert the table into that.
+    # Load template and write it to a file
     with open(".workflowsRepo/scripts/cook_soup_template.md", "r", encoding="utf-8") as soup_template:
         template_content = soup_template.read()
 
-    # Write the final content to SOUP.md
     final_content = template_content.replace("{{DEPENDENCY_TABLE}}", "\n".join(md_lines))
     with open("SOUP.md", "w", encoding="utf-8") as out_file:
         out_file.write(final_content)
-
 
 
 if __name__ == "__main__":
