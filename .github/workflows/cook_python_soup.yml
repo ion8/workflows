@@ -67,14 +67,11 @@ jobs:
         run: python .workflowsRepo/scripts/cook_soup.py
 
       # -----------------------
-      # 6. Clean Up Residual Files and Directories
+      # 6. Clean Up Residual Directories
       # -----------------------
-      - name: Clean Up Any Residual Files
+      - name: Clean Up Any Residual Folders
         run: |
           rm -rf .workflowsRepo
-
-          # Remove all files except SOUP.md, ignoring folders
-          find . -maxdepth 1 -type f ! -name "SOUP.md" -exec rm -v {} +  
 
       # -----------------------
       # 7. Check for Changes to SOUP.md
@@ -103,6 +100,7 @@ jobs:
         with:
           branch: update-soup-md
           title: "IMPROVE-188 - 🤖 Update SOUP.md"
+          add-paths: SOUP.md
           commit-message: "🤖 SOUP.md automatically updated by robots."
           sign-commits: true   # Sign the commits as github-actions[bot] using GITHUB_TOKEN
           delete-branch: true  # Delete the update-soup-md branch if there's no current PR open for it (prevents duplicates)
