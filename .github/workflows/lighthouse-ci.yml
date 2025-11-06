@@ -1,8 +1,10 @@
 name: Lighthouse CI
 
 on:
-  pull_request:
-    branches: [main]
+  workflow_call:
+    secrets:
+      LHCI_GITHUB_APP_TOKEN:
+        required: true   # Required for Lighthouse CI
 
 jobs:
   lighthouse:
@@ -75,6 +77,9 @@ jobs:
 
             ---
             _Tested on: Homepage (/) • Commit: \`${GITHUB_SHA:0:7}\`_"
+
+            # Authenticate GitHub CLI
+            echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
 
             # Find existing Lighthouse comment
             COMMENT_ID=$(gh api \
