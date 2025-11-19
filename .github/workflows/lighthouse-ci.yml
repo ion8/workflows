@@ -78,9 +78,6 @@ jobs:
             ---
             _Tested on: Homepage (/) • Commit: \`${GITHUB_SHA:0:7}\`_"
 
-            # Authenticate GitHub CLI
-            echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-
             # Find existing Lighthouse comment
             COMMENT_ID=$(gh api \
               "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
