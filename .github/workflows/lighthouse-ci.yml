@@ -2,6 +2,11 @@ name: Lighthouse CI
 
 on:
   workflow_call:
+    inputs:
+      preview_url:
+        required: true
+        type: string
+        description: "The Vercel preview URL to audit"
     secrets:
       LHCI_GITHUB_APP_TOKEN:
         required: true   # Required for Lighthouse CI
@@ -15,18 +20,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'yarn'
-
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Build Next.js site
-        run: yarn build
 
       - name: Run Lighthouse CI
         run: |
           yarn global add @lhci/cli
-          lhci autorun
+           lhci autorun --collect.url="${{ inputs.preview_url }}" --collect.startServerCommand=""
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
 
