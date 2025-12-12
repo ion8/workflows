@@ -1,0 +1,54 @@
+name: AI PR Meta Review
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+  issue_comment:
+jobs:
+  pr_agent_job:
+    if: ${{ github.event.sender.type != 'Bot' }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: write
+    steps:
+      - name: PR Agent action step
+        uses: qodo-ai/pr-agent@main
+        env:
+            OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            # Custom review instructions
+            pr_reviewer.extra_instructions: |
+                Act as a context-aware senior reviewer.
+
+                Always:
+                    - Review for correctness, security issues, performance risks, and unsafe patterns.
+                    - Communicate that the user commenting the /improve command will cause
+                    the agent to create code suggestions based on the reviewers feedback.
+
+                Exception hygiene:
+                    - Scan changed code for raised exceptions.
+                    - Compare against exceptions.py.
+                    - If an exception is missing, vague, or mismatched:
+                        * Suggest creating a specific Exception subclass.
+                        * Suggest updating all raise sites to use it.
+
+                Documentation sync:
+                    - Only when public behavior or configuration changes:
+                        * Suggest README updates.
+                        * Suggest env.py or .env.example updates for any added or modified ENV vars.
+                    - Do NOT request doc changes for trivial/internal refactors.
+
+                Noise control:
+                    - If the PR is small or low-impact:
+                        * Keep feedback brief.
+                        * Do not auto-generate documentation or refactor suggestions.
+
+                Output rules:
+                    - Use GitHub suggested-change diff blocks for any code modifications.
+                    - Avoid repetitive or stylistic nitpicks.
+                    - Post comments only when actionable improvement exists.
+            # Tool configuration
+            github_action_config.auto_review: "true"
+            github_action_config.auto_describe: "true"
+            github_action_config.auto_improve: "false"
