@@ -21,7 +21,7 @@ jobs:
       - name: PR Agent action step
         uses: qodo-ai/pr-agent@main
         env:
-            OPENAI_API_KEY: ${{ secrets.CICD_PR_KEY }}
+            OPENAI_API_KEY: ${{ secrets.OPENAI_CODE_REVIEW_API_KEY }}
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             # Custom review instructions
             pr_reviewer.extra_instructions: |
