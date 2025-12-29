@@ -129,7 +129,7 @@ async function discoverSitemap(baseUrl: string): Promise<string | null> {
   // https://www.robotstxt.org/robotstxt.html
   try {
     const robotsUrl = `${baseUrl}/robots.txt`
-    console.log(`Checking robots.txt: ${robotsUrl}`)
+    
 
     const response = await fetch(robotsUrl)
     if (response.ok) {
@@ -139,24 +139,24 @@ async function discoverSitemap(baseUrl: string): Promise<string | null> {
       const sitemapMatch = robotsTxt.match(/Sitemap:\s*(.+)/i)
       if (sitemapMatch) {
         const sitemapUrl = sitemapMatch[1].trim()
-        console.log(`  Found sitemap in robots.txt: ${sitemapUrl}`)
+        
         return sitemapUrl
       }
     }
   } catch (error) {
-    console.log(`  robots.txt not found or inaccessible`)
+    
   }
 
   // Step 2: Try standard sitemap locations
   // Per sitemaps.org protocol, these are the conventional locations
   const standardLocations = [`${baseUrl}/sitemap.xml`, `${baseUrl}/sitemap_index.xml`]
 
-  console.log(`Trying standard sitemap locations...`)
+  
   for (const url of standardLocations) {
     try {
       const response = await fetch(url, { method: "HEAD" })
       if (response.ok) {
-        console.log(`  Found sitemap at: ${url}`)
+        
         return url
       }
     } catch {
@@ -164,7 +164,7 @@ async function discoverSitemap(baseUrl: string): Promise<string | null> {
     }
   }
 
-  console.log(`  No sitemap found at standard locations`)
+  
   return null
 }
 
@@ -185,7 +185,7 @@ async function getPagesFromSitemap(baseUrl: string): Promise<string[]> {
       throw new Error("No sitemap found")
     }
 
-    console.log(`Fetching sitemap from: ${sitemapUrl}`)
+    
     const response = await fetch(sitemapUrl)
     if (!response.ok) {
       throw new Error(`Failed to fetch sitemap: ${response.status}`)
@@ -218,7 +218,7 @@ async function getPagesFromSitemap(baseUrl: string): Promise<string[]> {
       throw new Error("No valid pages found in sitemap")
     }
 
-    console.log(`Found ${pages.length} pages in sitemap\n`)
+    
     return pages
   } catch (error) {
     // Graceful fallback: if sitemap discovery/parsing fails, check homepage only
@@ -230,7 +230,7 @@ async function getPagesFromSitemap(baseUrl: string): Promise<string[]> {
 
 async function crawlPage(path: string): Promise<void> {
   const pageUrl = new URL(path, BASE_URL).href
-  console.log(`Crawling: ${pageUrl}`)
+  
 
   try {
     const response = await fetch(pageUrl)
@@ -367,8 +367,8 @@ function generateMarkdownReport(): string {
 }
 
 async function main(): Promise<void> {
-  console.log(`\n🔗 Link Checker starting...`)
-  console.log(`Base URL: ${BASE_URL}\n`)
+  
+  
 
   // Fetch pages from sitemap
   const pages = await getPagesFromSitemap(BASE_URL!)
@@ -380,8 +380,8 @@ async function main(): Promise<void> {
   const report = generateMarkdownReport()
 
   // Output report to stdout
-  console.log("\n" + "=".repeat(60) + "\n")
-  console.log(report)
+  
+  
 
   // Write report to file for GitHub Actions
   fs.writeFileSync("link-checker-report.md", report)
@@ -392,7 +392,7 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
-  console.log("\n✅ All links and images are valid!")
+  
   process.exit(0)
 }
 
