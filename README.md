@@ -13,6 +13,39 @@ Lint and test a Python application that uses poetry, flake8 and pytest. Uses cac
 
 If flake8, black, or pytest are not in the dependencies, their steps will be skipped.
 
+# 🤖 AI Review
+## `ai_pr_review.yml`
+Automatically reviews pull requests using **PR-Agent**, an AI-powered code review tool. The workflow triggers on pull request events (opened, reopened, ready_for_review) and issue comments, providing automated code review feedback.
+
+The workflow is configured with custom review instructions that emphasize:
+- **Code correctness**, security issues, performance risks, and unsafe patterns
+- **Exception hygiene** - ensuring exceptions align with project standards
+- **Documentation sync** - suggesting README and environment variable documentation updates when public behavior changes
+- **Noise control** - keeping feedback brief for small or low-impact PRs
+
+Auto-review and auto-describe are enabled, while auto-improve is disabled by default.
+
+## How do I get AI PR Review working in my repo?
+
+In each target repository, create `.github/workflows/ai-pr-review.yml`:
+
+```yaml
+name: AI PR Review
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+  issue_comment:
+
+jobs:
+  call-ai-review:
+    uses: ion8/workflows/.github/workflows/ai_pr_review.yml@main
+    secrets:
+      OPEN: ${{ secrets.OPENAI_CODE_REVIEW_API_KEY }}
+```
+
+**Note:** This workflow uses the organization-level `OPENAI_CODE_REVIEW_API_KEY` environment variable, so no per-repository configuration is needed. The OpenAI API key is managed centrally at the organization level.
+
 # 🔐 Security
 We'll be adding security workflows soon™️.
 
