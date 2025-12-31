@@ -41,7 +41,7 @@ jobs:
   call-ai-review:
     uses: ion8/workflows/.github/workflows/ai_pr_review.yml@main
     secrets:
-      OPEN: ${{ secrets.OPENAI_CODE_REVIEW_API_KEY }}
+      CICD_PR_KEY: ${{ secrets.OPENAI_CODE_REVIEW_API_KEY }}
 ```
 
 **Note:** This workflow uses the organization-level `OPENAI_CODE_REVIEW_API_KEY` environment variable, so no per-repository configuration is needed. The OpenAI API key is managed centrally at the organization level.
