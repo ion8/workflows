@@ -6,9 +6,6 @@ on:
         required: true
         type: string
         description: "The URL to check for broken links"
-    secrets:
-      GITHUB_TOKEN:
-        required: true
 jobs:
   check-links:
     runs-on: ubuntu-latest
