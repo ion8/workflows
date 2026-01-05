@@ -1,87 +1,58 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env node
 /**
  * Link Checker Script
  * Crawls a website and checks for broken links and missing images.
  * Automatically discovers pages from sitemap.xml
  *
- * Usage: npx tsx scripts/link-checker.ts <base-url>
- * Example: npx tsx scripts/link-checker.ts https://efficient-legal-preview.vercel.app
+ * Usage: node scripts/link-checker.js <base-url>
+ * Example: node scripts/link-checker.js https://efficient-legal-preview.vercel.app
  *
  * Note: The website must have a sitemap.xml at <base-url>/sitemap.xml
  */
 
-// @ts-ignore
-import * as fs from "fs";
-
-declare const process: {
-  argv: string[];
-  exit: (code: number) => never;
-};
+const fs = require("fs");
 
 /**
- * Represents a broken link found during crawling
+ * @typedef {Object} BrokenLink
+ * @property {string} page - The page path where the broken link was found
+ * @property {string} url - The original href attribute value
+ * @property {string} fullUrl - The resolved absolute URL
+ * @property {number|string} status - HTTP status code or error message (e.g., "Timeout", "Connection failed")
+ * @property {boolean} isInternal - Whether the link points to the same domain as BASE_URL
  */
-interface BrokenLink {
-  /** The page path where the broken link was found */
-  page: string;
-  /** The original href attribute value */
-  url: string;
-  /** The resolved absolute URL */
-  fullUrl: string;
-  /** HTTP status code or error message (e.g., "Timeout", "Connection failed") */
-  status: number | string;
-  /** Whether the link points to the same domain as BASE_URL */
-  isInternal: boolean;
-}
 
 /**
- * Represents a missing or inaccessible image found during crawling
+ * @typedef {Object} MissingImage
+ * @property {string} page - The page path where the missing image was found
+ * @property {string} src - The original src attribute value
+ * @property {string} fullUrl - The resolved absolute URL
+ * @property {number|string} status - HTTP status code or error message (e.g., "Timeout", "Connection failed")
  */
-interface MissingImage {
-  /** The page path where the missing image was found */
-  page: string;
-  /** The original src attribute value */
-  src: string;
-  /** The resolved absolute URL */
-  fullUrl: string;
-  /** HTTP status code or error message (e.g., "Timeout", "Connection failed") */
-  status: number | string;
-}
 
 /**
- * Aggregated results from the link checking process
+ * @typedef {Object} Results
+ * @property {BrokenLink[]} brokenLinks - All broken links discovered across all pages
+ * @property {MissingImage[]} missingImages - All missing images discovered across all pages
+ * @property {Set<string>} checkedLinks - Set of unique link URLs that have been checked (prevents duplicate checks)
+ * @property {Set<string>} checkedImages - Set of unique image URLs that have been checked (prevents duplicate checks)
+ * @property {number} pagesCrawled - Total number of pages successfully crawled
  */
-interface Results {
-  /** All broken links discovered across all pages */
-  brokenLinks: BrokenLink[];
-  /** All missing images discovered across all pages */
-  missingImages: MissingImage[];
-  /** Set of unique link URLs that have been checked (prevents duplicate checks) */
-  checkedLinks: Set<string>;
-  /** Set of unique image URLs that have been checked (prevents duplicate checks) */
-  checkedImages: Set<string>;
-  /** Total number of pages successfully crawled */
-  pagesCrawled: number;
-}
 
 /**
- * Result of checking a single URL's accessibility
+ * @typedef {Object} CheckUrlResult
+ * @property {boolean} ok - Whether the URL returned a 2xx status code
+ * @property {number|string} status - HTTP status code or error message
  */
-interface CheckUrlResult {
-  /** Whether the URL returned a 2xx status code */
-  ok: boolean;
-  /** HTTP status code or error message */
-  status: number | string;
-}
 
-const BASE_URL: string | undefined = process.argv[2];
+const BASE_URL = process.argv[2];
 
 if (!BASE_URL) {
-  console.error("Usage: npx tsx scripts/link-checker.ts <base-url>");
+  console.error("Usage: node scripts/link-checker.js <base-url>");
   process.exit(1);
 }
 
-const results: Results = {
+/** @type {Results} */
+const results = {
   brokenLinks: [],
   missingImages: [],
   checkedLinks: new Set(),
@@ -92,14 +63,14 @@ const results: Results = {
 /**
  * Checks if a URL is accessible by making a HEAD request
  *
- * @param url - The absolute URL to check
- * @returns Object containing ok status and HTTP status code or error message
+ * @param {string} url - The absolute URL to check
+ * @returns {Promise<CheckUrlResult>} Object containing ok status and HTTP status code or error message
  * @remarks
  * - Uses HEAD request with 10 second timeout
  * - Follows redirects automatically
  * - Returns "Timeout" or "Connection failed" for network errors
  */
-async function checkUrl(url: string): Promise<CheckUrlResult> {
+async function checkUrl(url) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -115,10 +86,7 @@ async function checkUrl(url: string): Promise<CheckUrlResult> {
   } catch (error) {
     return {
       ok: false,
-      status:
-        (error as Error).name === "AbortError"
-          ? "Timeout"
-          : "Connection failed",
+      status: error.name === "AbortError" ? "Timeout" : "Connection failed",
     };
   }
 }
@@ -126,13 +94,13 @@ async function checkUrl(url: string): Promise<CheckUrlResult> {
 /**
  * Determines if a URL belongs to the same domain as BASE_URL
  *
- * @param url - The URL to check (can be relative or absolute)
- * @returns true if the URL's hostname matches BASE_URL's hostname, false otherwise
+ * @param {string} url - The URL to check (can be relative or absolute)
+ * @returns {boolean} true if the URL's hostname matches BASE_URL's hostname, false otherwise
  */
-function isInternalUrl(url: string): boolean {
+function isInternalUrl(url) {
   try {
     const parsed = new URL(url, BASE_URL);
-    const base = new URL(BASE_URL!);
+    const base = new URL(BASE_URL);
     return parsed.hostname === base.hostname;
   } catch {
     return false;
@@ -142,11 +110,11 @@ function isInternalUrl(url: string): boolean {
 /**
  * Resolves a relative or absolute URL against a base page URL
  *
- * @param href - The URL to resolve (can be relative or absolute)
- * @param pageUrl - The base page URL to resolve against
- * @returns The resolved absolute URL, or null if the URL is invalid
+ * @param {string} href - The URL to resolve (can be relative or absolute)
+ * @param {string} pageUrl - The base page URL to resolve against
+ * @returns {string|null} The resolved absolute URL, or null if the URL is invalid
  */
-function resolveUrl(href: string, pageUrl: string): string | null {
+function resolveUrl(href, pageUrl) {
   try {
     return new URL(href, pageUrl).href;
   } catch {
@@ -157,15 +125,15 @@ function resolveUrl(href: string, pageUrl: string): string | null {
 /**
  * Discovers the sitemap URL for a given website following web standards
  *
- * @param baseUrl - The base URL of the website to check
- * @returns The sitemap URL if found, null otherwise
+ * @param {string} baseUrl - The base URL of the website to check
+ * @returns {Promise<string|null>} The sitemap URL if found, null otherwise
  * @remarks
  * Discovery process:
  * 1. Checks robots.txt for Sitemap directive (per https://www.robotstxt.org/robotstxt.html)
  * 2. Tries standard locations: /sitemap.xml and /sitemap_index.xml
  * 3. Returns null if no sitemap found (caller should handle fallback)
  */
-async function discoverSitemap(baseUrl: string): Promise<string | null> {
+async function discoverSitemap(baseUrl) {
   // Step 1: Check robots.txt for Sitemap directive
   // Many sites declare their sitemap location in robots.txt following the standard:
   // https://www.robotstxt.org/robotstxt.html
@@ -210,15 +178,15 @@ async function discoverSitemap(baseUrl: string): Promise<string | null> {
 /**
  * Fetches and parses a sitemap.xml file to extract page paths
  *
- * @param baseUrl - The base URL of the website
- * @returns Array of page paths (e.g., ["/", "/about", "/contact"])
+ * @param {string} baseUrl - The base URL of the website
+ * @returns {Promise<string[]>} Array of page paths (e.g., ["/", "/about", "/contact"])
  * @remarks
  * - Uses discoverSitemap() to find the sitemap location
  * - Extracts <loc> tags per https://www.sitemaps.org/protocol.html
  * - Returns paths only (strips domain) to work with preview deployments
  * - Falls back to ["/"] (homepage only) if sitemap discovery/parsing fails
  */
-async function getPagesFromSitemap(baseUrl: string): Promise<string[]> {
+async function getPagesFromSitemap(baseUrl) {
   try {
     // Discover sitemap location (checks robots.txt + standard locations)
     const sitemapUrl = await discoverSitemap(baseUrl);
@@ -237,7 +205,7 @@ async function getPagesFromSitemap(baseUrl: string): Promise<string[]> {
     // Extract all <loc> tags from sitemap XML
     // Format: <loc>https://example.com/page</loc>
     const locMatches = xml.matchAll(/<loc>(.*?)<\/loc>/g);
-    const pages: string[] = [];
+    const pages = [];
 
     for (const match of locMatches) {
       const url = match[1];
@@ -262,7 +230,7 @@ async function getPagesFromSitemap(baseUrl: string): Promise<string[]> {
     return pages;
   } catch (error) {
     // Graceful fallback: if sitemap discovery/parsing fails, check homepage only
-    console.error(`Error fetching sitemap: ${(error as Error).message}`);
+    console.error(`Error fetching sitemap: ${error.message}`);
     console.error("Falling back to homepage only\n");
     return ["/"];
   }
@@ -271,7 +239,7 @@ async function getPagesFromSitemap(baseUrl: string): Promise<string[]> {
 /**
  * Crawls a single page and checks all links and images for accessibility
  *
- * @param path - The page path to crawl (e.g., "/about")
+ * @param {string} path - The page path to crawl (e.g., "/about")
  * @remarks
  * - Fetches the page HTML
  * - Extracts all href attributes from links
@@ -280,7 +248,7 @@ async function getPagesFromSitemap(baseUrl: string): Promise<string[]> {
  * - Skips anchors (#), javascript:, mailto:, tel: links
  * - Skips data: URIs and SVG sprite references for images
  */
-async function crawlPage(path: string): Promise<void> {
+async function crawlPage(path) {
   const pageUrl = new URL(path, BASE_URL).href;
 
   try {
@@ -352,14 +320,14 @@ async function crawlPage(path: string): Promise<void> {
       }
     }
   } catch (error) {
-    console.error(`  Error crawling ${path}: ${(error as Error).message}`);
+    console.error(`  Error crawling ${path}: ${error.message}`);
   }
 }
 
 /**
  * Generates a markdown report from the collected results
  *
- * @returns Formatted markdown string with broken links, missing images, and summary statistics
+ * @returns {string} Formatted markdown string with broken links, missing images, and summary statistics
  * @remarks
  * Report structure:
  * - Internal broken links (errors - cause CI failure)
@@ -367,7 +335,7 @@ async function crawlPage(path: string): Promise<void> {
  * - External broken links (warnings - informational only)
  * - Summary table with crawl statistics
  */
-function generateMarkdownReport(): string {
+function generateMarkdownReport() {
   const internalBroken = results.brokenLinks.filter((l) => l.isInternal);
   const externalBroken = results.brokenLinks.filter((l) => !l.isInternal);
 
@@ -440,17 +408,15 @@ function generateMarkdownReport(): string {
  * 4. Writes report to link-checker-report.md
  * 5. Exits with code 1 if any broken links or missing images found
  */
-async function main(): Promise<void> {
+async function main() {
   // Fetch pages from sitemap
-  const pages = await getPagesFromSitemap(BASE_URL!);
+  const pages = await getPagesFromSitemap(BASE_URL);
 
   for (const page of pages) {
     await crawlPage(page);
   }
 
   const report = generateMarkdownReport();
-
-  // Output report to stdout
 
   // Write report to file for GitHub Actions
   fs.writeFileSync("link-checker-report.md", report);
