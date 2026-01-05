@@ -4,7 +4,7 @@ on:
   # This workflow is reusable and will be called using `workflow_call` from target repos.
   workflow_call:
     secrets:
-      CICD_PR_KEY:
+      OPENAI_CODE_REVIEW_API_KEY:
         required: true
         description: "OpenAI API key for PR Agent"
 
