@@ -35,8 +35,13 @@ jobs:
       - name: Post Lighthouse results to PR
         if: always() && github.event_name == 'pull_request'
         run: |
-          # Find the latest Lighthouse report
-          REPORT_FILE=$(find .lighthouseci -name "lhr-*.json" | head -1)
+          # Find the median Lighthouse report (the one LHCI uses for assertions/upload)
+          MANIFEST_FILE=".lighthouseci/manifest.json"
+          if [ -f "$MANIFEST_FILE" ]; then
+            REPORT_FILE=$(cat "$MANIFEST_FILE" | jq -r '.[-1].jsonPath')
+          else
+            REPORT_FILE=$(find .lighthouseci -name "lhr-*.json" | head -1)
+          fi
 
           if [ -f "$REPORT_FILE" ]; then
             # Parse scores using jq
