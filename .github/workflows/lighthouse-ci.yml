@@ -112,7 +112,10 @@ jobs:
             else
               # Create new comment
               echo "Creating new comment"
-              gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT_BODY"
+              gh api \
+              --method POST \ 
+              "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \ 
+              -f body="$COMMENT_BODY"
             fi
           else
             echo "No Lighthouse report found"
