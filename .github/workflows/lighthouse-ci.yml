@@ -29,6 +29,17 @@ jobs:
         run: |
           yarn global add @lhci/cli
           lhci autorun --config=.workflows/lighthouserc.json --collect.url="${{ inputs.preview_url }}" --collect.startServerCommand=""
+
+      - name: Debug - Find lighthouseci directory
+        if: always()
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Looking for .lighthouseci:"
+          find . -type d -name ".lighthouseci" 2>/dev/null
+          echo "Contents of workspace:"
+          ls -la
+          echo "Contents of .workflows (if exists):"
+          ls -la .workflows/ 2>/dev/null || echo "No .workflows directory"
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
 
