@@ -8,7 +8,7 @@ on:
         description: "The URL to check for broken links"
       pr_number:
         required: false
-        type: number
+        type: string
         description: "PR number to post comments to (optional, defaults to current PR)"
 jobs:
   check-links:
@@ -34,7 +34,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const prNumber = ${{ inputs.pr_number || 0 }} || context.issue?.number;
+            const prNumber = parseInt('${{ inputs.pr_number }}', 10) || context.issue?.number;
             if (!prNumber) {
               return;
             }
