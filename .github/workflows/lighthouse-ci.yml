@@ -28,7 +28,10 @@ jobs:
       - name: Run Lighthouse CI
         run: |
           yarn global add @lhci/cli
-          lhci autorun --config=.workflows/lighthouserc.json --collect.url="${{ inputs.preview_url }}" --collect.startServerCommand=""
+          echo "=== Verifying config file exists and content ==="
+          cat .workflows/lighthouserc.json
+          echo "=== Running LHCI with verbose output ==="
+          lhci autorun --config=.workflows/lighthouserc.json --collect.url="${{ inputs.preview_url }}" --collect.startServerCommand="" --verbose
       - name: Post Lighthouse results to PR
         if: always() && (github.event_name == 'pull_request' || inputs.pr_number)
         run: |
