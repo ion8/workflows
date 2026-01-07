@@ -7,6 +7,10 @@ on:
         required: true
         type: string
         description: "The Vercel preview URL to audit"
+      pr_number:
+        required: false
+        type: string
+        description: "PR number to post comments to (optional, defaults to current PR)"
     secrets:
       LHCI_GITHUB_APP_TOKEN:
         required: true   # Required for Lighthouse CI
