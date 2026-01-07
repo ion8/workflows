@@ -1,5 +1,4 @@
 name: Lighthouse CI
-
 on:
   workflow_call:
     inputs:
@@ -14,7 +13,6 @@ on:
     secrets:
       LHCI_GITHUB_APP_TOKEN:
         required: true   # Required for Lighthouse CI
-
 jobs:
   lighthouse:
     runs-on: ubuntu-latest
@@ -24,32 +22,17 @@ jobs:
         with:
           repository: ion8/workflows
           path: .workflows
-
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-
       - name: Run Lighthouse CI
         run: |
           yarn global add @lhci/cli
           lhci autorun --config=.workflows/lighthouserc.json --collect.url="${{ inputs.preview_url }}" --collect.startServerCommand=""
-
-      - name: Debug - Find lighthouseci directory
-        if: always()
-        run: |
-          echo "Current directory: $(pwd)"
-          echo "Looking for .lighthouseci:"
-          find . -type d -name ".lighthouseci" 2>/dev/null
-          echo "Contents of workspace:"
-          ls -la
-          echo "Contents of .workflows (if exists):"
-          ls -la .workflows/ 2>/dev/null || echo "No .workflows directory"
-        env:
-          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
-
       - name: Post Lighthouse results to PR
-        if: always() && github.event_name == 'pull_request'
+        if: always() && (github.event_name == 'pull_request' || inputs.pr_number)
         run: |
+          PR_NUMBER="${{ inputs.pr_number }}"
           # Find the median Lighthouse report (the one LHCI uses for assertions/upload)
           MANIFEST_FILE=".lighthouseci/manifest.json"
           if [ -f "$MANIFEST_FILE" ]; then
@@ -57,18 +40,15 @@ jobs:
           else
             REPORT_FILE=$(find .lighthouseci -name "lhr-*.json" | head -1)
           fi
-
           if [ -f "$REPORT_FILE" ]; then
             # Parse scores using jq
             PERF=$(cat "$REPORT_FILE" | jq -r '.categories.performance.score * 100 | floor')
             A11Y=$(cat "$REPORT_FILE" | jq -r '.categories.accessibility.score * 100 | floor')
             BP=$(cat "$REPORT_FILE" | jq -r '.categories["best-practices"].score * 100 | floor')
             SEO=$(cat "$REPORT_FILE" | jq -r '.categories.seo.score * 100 | floor')
-
             LCP=$(cat "$REPORT_FILE" | jq -r '.audits["largest-contentful-paint"].displayValue')
             TBT=$(cat "$REPORT_FILE" | jq -r '.audits["total-blocking-time"].displayValue')
             CLS=$(cat "$REPORT_FILE" | jq -r '.audits["cumulative-layout-shift"].displayValue')
-
             # Determine emoji based on score
             get_emoji() {
               if [ $1 -ge 90 ]; then echo "🟢"
@@ -76,36 +56,29 @@ jobs:
               else echo "🔴"
               fi
             }
-
             PERF_EMOJI=$(get_emoji $PERF)
             A11Y_EMOJI=$(get_emoji $A11Y)
             BP_EMOJI=$(get_emoji $BP)
             SEO_EMOJI=$(get_emoji $SEO)
-
             # Create comment body
             COMMENT_BODY="## 🚦 Lighthouse CI Results
-
             | Category | Score |
             |----------|-------|
             | $PERF_EMOJI **Performance** | **${PERF}%** |
             | $A11Y_EMOJI **Accessibility** | **${A11Y}%** |
             | $BP_EMOJI **Best Practices** | **${BP}%** |
             | $SEO_EMOJI **SEO** | **${SEO}%** |
-
             ### Core Web Vitals
             - **LCP:** ${LCP}
             - **TBT:** ${TBT}
             - **CLS:** ${CLS}
-
             ---
             _Tested on: Homepage (/) • Commit: \`${GITHUB_SHA:0:7}\`_"
-
             # Find existing Lighthouse comment
             COMMENT_ID=$(gh api \
-              "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+              "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
               --jq '.[] | select(.body | startswith("## 🚦 Lighthouse CI Results")) | .id' \
               | head -1)
-
             if [ -n "$COMMENT_ID" ]; then
               # Update existing comment
               echo "Updating existing comment ID: $COMMENT_ID"
@@ -117,16 +90,15 @@ jobs:
               # Create new comment
               echo "Creating new comment"
               gh api \
-              --method POST \ 
-              "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \ 
-              -f body="$COMMENT_BODY"
+                --method POST \
+                "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
+                -f body="$COMMENT_BODY"
             fi
           else
             echo "No Lighthouse report found"
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Upload Lighthouse results
         uses: actions/upload-artifact@v4
         if: always()
