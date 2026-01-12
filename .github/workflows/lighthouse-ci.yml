@@ -38,19 +38,9 @@ jobs:
         if: always() && (github.event_name == 'pull_request' || inputs.pr_number)
         run: |
           PR_NUMBER="${{ inputs.pr_number }}"
-          # Find the median Lighthouse report (the one LHCI uses for assertions/upload)
-          MANIFEST_FILE=".lighthouseci/manifest.json"
-          echo "=== Debug: Manifest contents ==="
-          cat "$MANIFEST_FILE" | jq '.'
-          if [ -f "$MANIFEST_FILE" ]; then
-            REPORT_FILE=$(cat "$MANIFEST_FILE" | jq -r '.[-1].jsonPath')
-            echo "=== Debug: Selected report file ==="
-            echo "$REPORT_FILE"
-          else
-            REPORT_FILE=$(find .lighthouseci -name "lhr-*.json" | head -1)
-            echo "=== Debug: Fallback report file ==="
-            echo "$REPORT_FILE"
-          fi
+          # Find the Lighthouse report (only 1 run, so only 1 file)
+          REPORT_FILE=$(find .lighthouseci -name "lhr-*.json" | head -1)
+          
           if [ -f "$REPORT_FILE" ]; then
             # Parse scores using jq
             PERF=$(cat "$REPORT_FILE" | jq -r '.categories.performance.score * 100 | floor')
