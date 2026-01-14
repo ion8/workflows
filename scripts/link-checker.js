@@ -303,8 +303,8 @@ async function crawlPage(path) {
     for (const match of imgMatches) {
       const src = match[1];
 
-      // Skip data URIs and SVG sprites
-      if (src.startsWith("data:") || src.startsWith("#")) continue;
+      // Skip data URIs, SVG sprites, and Next.js image optimization URLs
+  if (src.startsWith("data:") || src.startsWith("#") || src.includes("/_next/image")) continue;
 
       const fullUrl = resolveUrl(src, pageUrl);
       if (!fullUrl || results.checkedImages.has(fullUrl)) continue;
