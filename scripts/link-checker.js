@@ -80,7 +80,7 @@ async function checkUrl(url) {
       signal: controller.signal,
       redirect: 'follow',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; LinkChecker/1.0)',
+        'User-Agent': 'ion8-link-checker',
       },
     });
 
