@@ -1,7 +1,7 @@
 {
   "ci": {
     "collect": {
-      "numberOfRuns": 2,
+      "numberOfRuns": 1,
       "settings": {
         "skipAudits": ["is-crawlable", "third-party-cookies", "issues"],
         "blockedUrlPatterns": ["*googletagmanager.com*", "*salesiq.zohopublic.com*"]
