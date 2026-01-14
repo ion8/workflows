@@ -76,9 +76,12 @@ async function checkUrl(url) {
     const timeout = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch(url, {
-      method: "HEAD",
+      method: 'HEAD',
       signal: controller.signal,
-      redirect: "follow",
+      redirect: 'follow',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; LinkChecker/1.0)',
+      },
     });
 
     clearTimeout(timeout);
