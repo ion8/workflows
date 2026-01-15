@@ -76,9 +76,12 @@ async function checkUrl(url) {
     const timeout = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch(url, {
-      method: "HEAD",
+      method: 'HEAD',
       signal: controller.signal,
-      redirect: "follow",
+      redirect: 'follow',
+      headers: {
+        'User-Agent': 'ion8-link-checker',
+      },
     });
 
     clearTimeout(timeout);
@@ -300,8 +303,8 @@ async function crawlPage(path) {
     for (const match of imgMatches) {
       const src = match[1];
 
-      // Skip data URIs and SVG sprites
-      if (src.startsWith("data:") || src.startsWith("#")) continue;
+      // Skip data URIs, SVG sprites, and Next.js image optimization URLs
+  if (src.startsWith("data:") || src.startsWith("#") || src.includes("/_next/image")) continue;
 
       const fullUrl = resolveUrl(src, pageUrl);
       if (!fullUrl || results.checkedImages.has(fullUrl)) continue;
