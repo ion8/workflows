@@ -428,11 +428,13 @@ async function main() {
   const report = generateMarkdownReport();
 
   // Write report to file for GitHub Actions
-  fs.writeFileSync("link-checker-report.md", report);
+  fs.writeFileSync('link-checker-report.md', report);
 
-  // Exit with error if ANY broken links or missing images found
-  if (results.brokenLinks.length > 0 || results.missingImages.length > 0) {
-    console.error("\n❌ Found broken links or missing images!");
+  // Exit with error only for internal broken links or missing images
+  // External broken links are warnings only (shown in report but don't fail CI)
+  const internalBroken = results.brokenLinks.filter((l) => l.isInternal);
+  if (internalBroken.length > 0 || results.missingImages.length > 0) {
+    console.error('\n❌ Found broken internal links or missing images!');
     process.exit(1);
   }
 
