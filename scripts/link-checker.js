@@ -253,7 +253,6 @@ async function getPagesFromSitemap(baseUrl) {
  * - Skips data: URIs and SVG sprite references for images
  */
 async function crawlPage(path) {
-  console.log(`Crawling: ${path}`);
   const pageUrl = new URL(path, BASE_URL).href;
 
   try {
@@ -281,6 +280,7 @@ async function crawlPage(path) {
       ) {
         // Track skipped external links (not anchors/mailto/etc)
         if (href.includes('help.ion8.net')) {
+          console.log(`  Skipped: ${href} (blocks automated requests)`);
           results.skippedLinks.push({
             page: path,
             url: href,
@@ -402,31 +402,6 @@ function generateMarkdownReport() {
     }
     report += `\n`;
   }
-
-  // Skipped links (informational)
-if (results.skippedLinks.length > 0) {
-  // Group by URL to avoid duplicates
-  const uniqueSkipped = {};
-  for (const link of results.skippedLinks) {
-    if (!uniqueSkipped[link.url]) {
-      uniqueSkipped[link.url] = {
-        url: link.url,
-        reason: link.reason,
-        count: 0,
-      };
-    }
-    uniqueSkipped[link.url].count++;
-  }
-
-  const skippedList = Object.values(uniqueSkipped);
-  report += `### ⏭️ Skipped Links (${skippedList.length} unique, ${results.skippedLinks.length} total)\n\n`;
-  report += `| Link | Reason | Occurrences |\n`;
-  report += `|------|--------|-------------|\n`;
-  for (const link of skippedList) {
-    report += `| \`${link.url}\` | ${link.reason} | ${link.count} |\n`;
-  }
-  report += `\n`;
-}
 
   // Stats
   report += `### 📊 Summary\n\n`;
