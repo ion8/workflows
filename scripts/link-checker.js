@@ -74,16 +74,22 @@ async function checkUrl(url) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
-
-    const response = await fetch(url, {
+    const headers = { 'User-Agent': 'ion8LinkChecker/1.0' };
+    let response = await fetch(url, {
       method: 'HEAD',
       signal: controller.signal,
       redirect: 'follow',
-      headers: {
-        'User-Agent': 'ion8-link-checker',
-      },
+      headers,
     });
-
+    // If HEAD returns 400/405, try GET (some servers don't support HEAD)
+    if (response.status === 400 || response.status === 405) {
+      response = await fetch(url, {
+        method: 'GET',
+        signal: controller.signal,
+        redirect: 'follow',
+        headers,
+      });
+    }
     clearTimeout(timeout);
     return { ok: response.ok, status: response.status };
   } catch (error) {
