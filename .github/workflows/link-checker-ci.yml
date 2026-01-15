@@ -19,6 +19,7 @@ jobs:
         with:
           repository: ion8/workflows
           path: .workflows
+          ref: seema/fix-header-issue # only add this when testing from a branch other than main
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
