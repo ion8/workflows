@@ -74,28 +74,22 @@ async function checkUrl(url) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
-    const headers = { 'User-Agent': 'ion8LinkChecker/1.0' };
-    let response = await fetch(url, {
+
+    const response = await fetch(url, {
       method: 'HEAD',
       signal: controller.signal,
       redirect: 'follow',
-      headers,
+      headers: {
+        'User-Agent': 'ion8-link-checker',
+      },
     });
-    // If HEAD returns 400/405, try GET (some servers don't support HEAD)
-    if (response.status === 400 || response.status === 405) {
-      response = await fetch(url, {
-        method: 'GET',
-        signal: controller.signal,
-        redirect: 'follow',
-        headers,
-      });
-    }
+
     clearTimeout(timeout);
     return { ok: response.ok, status: response.status };
   } catch (error) {
     return {
       ok: false,
-      status: error.name === "AbortError" ? "Timeout" : "Connection failed",
+      status: error.name === 'AbortError' ? 'Timeout' : 'Connection failed',
     };
   }
 }
@@ -172,7 +166,7 @@ async function discoverSitemap(baseUrl) {
 
   for (const url of standardLocations) {
     try {
-      const response = await fetch(url, { method: "HEAD" });
+      const response = await fetch(url, { method: 'HEAD' });
       if (response.ok) {
         return url;
       }
@@ -201,7 +195,7 @@ async function getPagesFromSitemap(baseUrl) {
     const sitemapUrl = await discoverSitemap(baseUrl);
 
     if (!sitemapUrl) {
-      throw new Error("No sitemap found");
+      throw new Error('No sitemap found');
     }
 
     const response = await fetch(sitemapUrl);
@@ -223,7 +217,7 @@ async function getPagesFromSitemap(baseUrl) {
         // Extract path from sitemap URL (e.g., https://example.com/about -> /about)
         // Note: We extract paths regardless of domain because sitemaps often have
         // hardcoded production URLs even on preview deployments
-        const path = parsed.pathname || "/";
+        const path = parsed.pathname || '/';
         if (!pages.includes(path)) {
           pages.push(path);
         }
@@ -233,15 +227,15 @@ async function getPagesFromSitemap(baseUrl) {
     }
 
     if (pages.length === 0) {
-      throw new Error("No valid pages found in sitemap");
+      throw new Error('No valid pages found in sitemap');
     }
 
     return pages;
   } catch (error) {
     // Graceful fallback: if sitemap discovery/parsing fails, check homepage only
     console.error(`Error fetching sitemap: ${error.message}`);
-    console.error("Falling back to homepage only\n");
-    return ["/"];
+    console.error('Falling back to homepage only\n');
+    return ['/'];
   }
 }
 
@@ -277,10 +271,11 @@ async function crawlPage(path) {
 
       // Skip anchors, javascript, mailto, tel
       if (
-        href.startsWith("#") ||
-        href.startsWith("javascript:") ||
-        href.startsWith("mailto:") ||
-        href.startsWith("tel:")
+        href.startsWith('#') ||
+        href.startsWith('javascript:') ||
+        href.startsWith('mailto:') ||
+        href.startsWith('tel:') ||
+        href.includes('help.ion8.net')
       ) {
         continue;
       }
@@ -310,7 +305,12 @@ async function crawlPage(path) {
       const src = match[1];
 
       // Skip data URIs, SVG sprites, and Next.js image optimization URLs
-  if (src.startsWith("data:") || src.startsWith("#") || src.includes("/_next/image")) continue;
+      if (
+        src.startsWith('data:') ||
+        src.startsWith('#') ||
+        src.includes('/_next/image')
+      )
+        continue;
 
       const fullUrl = resolveUrl(src, pageUrl);
       if (!fullUrl || results.checkedImages.has(fullUrl)) continue;
