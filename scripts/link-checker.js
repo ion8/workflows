@@ -404,15 +404,29 @@ function generateMarkdownReport() {
   }
 
   // Skipped links (informational)
-  if (results.skippedLinks.length > 0) {
-    report += `### ⏭️ Skipped Links (${results.skippedLinks.length})\n\n`;
-    report += `| Page | Link | Reason |\n`;
-    report += `|------|------|--------|\n`;
-    for (const link of results.skippedLinks) {
-      report += `| ${link.page} | \`${link.url}\` | ${link.reason} |\n`;
+if (results.skippedLinks.length > 0) {
+  // Group by URL to avoid duplicates
+  const uniqueSkipped = {};
+  for (const link of results.skippedLinks) {
+    if (!uniqueSkipped[link.url]) {
+      uniqueSkipped[link.url] = {
+        url: link.url,
+        reason: link.reason,
+        count: 0,
+      };
     }
-    report += `\n`;
+    uniqueSkipped[link.url].count++;
   }
+
+  const skippedList = Object.values(uniqueSkipped);
+  report += `### ⏭️ Skipped Links (${skippedList.length} unique, ${results.skippedLinks.length} total)\n\n`;
+  report += `| Link | Reason | Occurrences |\n`;
+  report += `|------|--------|-------------|\n`;
+  for (const link of skippedList) {
+    report += `| \`${link.url}\` | ${link.reason} | ${link.count} |\n`;
+  }
+  report += `\n`;
+}
 
   // Stats
   report += `### 📊 Summary\n\n`;
