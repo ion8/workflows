@@ -281,7 +281,7 @@ async function crawlPage(path) {
       }
 
       // Debug: log any ion8.net links to see what's being checked
-      if (href.includes('help.ion8.net')) {
+      if (href.includes('ion8.net')) {
         console.log(`Found ion8 link: "${href}"`);
       }
 
