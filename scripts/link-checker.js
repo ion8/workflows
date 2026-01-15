@@ -269,6 +269,14 @@ async function crawlPage(path) {
     for (const match of linkMatches) {
       const href = match[1];
 
+      // Debug: print ALL hrefs containing "help" or "ion8"
+      if (
+        href.toLowerCase().includes('help') ||
+        href.toLowerCase().includes('ion8')
+      ) {
+        console.log(`RAW HREF: "${href}"`);
+      }
+
       // Skip anchors, javascript, mailto, tel
       if (
         href.startsWith('#') ||
