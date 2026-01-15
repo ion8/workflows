@@ -252,6 +252,7 @@ async function getPagesFromSitemap(baseUrl) {
  * - Skips data: URIs and SVG sprite references for images
  */
 async function crawlPage(path) {
+  console.log(`Crawling: ${path}`);
   const pageUrl = new URL(path, BASE_URL).href;
 
   try {
@@ -413,7 +414,9 @@ function generateMarkdownReport() {
   report += `| **Pages crawled** | ${results.pagesCrawled} |\n`;
   report += `| **Links checked** | ${results.checkedLinks.size} |\n`;
   report += `| **Images checked** | ${results.checkedImages.size} |\n`;
-  report += `| **Internal errors** | ${internalBroken.length + results.missingImages.length} |\n`;
+  report += `| **Internal errors** | ${
+    internalBroken.length + results.missingImages.length
+  } |\n`;
   report += `| **External warnings** | ${externalBroken.length} |\n`;
 
   return report;
@@ -431,9 +434,10 @@ function generateMarkdownReport() {
  * 5. Exits with code 1 if any broken links or missing images found
  */
 async function main() {
+  console.log(`Starting link checker for: ${BASE_URL}`);
   // Fetch pages from sitemap
   const pages = await getPagesFromSitemap(BASE_URL);
-
+  console.log(`Found ${pages.length} pages to check`);
   for (const page of pages) {
     await crawlPage(page);
   }
