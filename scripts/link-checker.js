@@ -57,6 +57,7 @@ const results = {
   missingImages: [],
   checkedLinks: new Set(),
   checkedImages: new Set(),
+  skippedLinks: [],
   pagesCrawled: 0,
 };
 
@@ -278,6 +279,14 @@ async function crawlPage(path) {
         href.startsWith('tel:') ||
         href.includes('help.ion8.net')
       ) {
+        // Track skipped external links (not anchors/mailto/etc)
+        if (href.includes('help.ion8.net')) {
+          results.skippedLinks.push({
+            page: path,
+            url: href,
+            reason: 'Blocks automated requests',
+          });
+        }
         continue;
       }
 
@@ -394,7 +403,18 @@ function generateMarkdownReport() {
     report += `\n`;
   }
 
-  // Stats - table format like Lighthouse CI
+  // Skipped links (informational)
+  if (results.skippedLinks.length > 0) {
+    report += `### ⏭️ Skipped Links (${results.skippedLinks.length})\n\n`;
+    report += `| Page | Link | Reason |\n`;
+    report += `|------|------|--------|\n`;
+    for (const link of results.skippedLinks) {
+      report += `| ${link.page} | \`${link.url}\` | ${link.reason} |\n`;
+    }
+    report += `\n`;
+  }
+
+  // Stats
   report += `### 📊 Summary\n\n`;
   report += `| Metric | Count |\n`;
   report += `|--------|-------|\n`;
@@ -405,6 +425,7 @@ function generateMarkdownReport() {
     internalBroken.length + results.missingImages.length
   } |\n`;
   report += `| **External warnings** | ${externalBroken.length} |\n`;
+  report += `| **Skipped** | ${results.skippedLinks.length} |\n`;
 
   return report;
 }
