@@ -270,14 +270,6 @@ async function crawlPage(path) {
     for (const match of linkMatches) {
       const href = match[1];
 
-      // Debug: print ALL hrefs containing "help" or "ion8"
-      if (
-        href.toLowerCase().includes('help') ||
-        href.toLowerCase().includes('ion8')
-      ) {
-        console.log(`RAW HREF: "${href}"`);
-      }
-
       // Skip anchors, javascript, mailto, tel
       if (
         href.startsWith('#') ||
@@ -287,11 +279,6 @@ async function crawlPage(path) {
         href.includes('help.ion8.net')
       ) {
         continue;
-      }
-
-      // Debug: log any ion8.net links to see what's being checked
-      if (href.includes('ion8.net')) {
-        console.log(`Found ion8 link: "${href}"`);
       }
 
       const fullUrl = resolveUrl(href, pageUrl);
