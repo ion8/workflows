@@ -57,6 +57,7 @@ const results = {
   missingImages: [],
   checkedLinks: new Set(),
   checkedImages: new Set(),
+  skippedLinks: [],
   pagesCrawled: 0,
 };
 
@@ -89,7 +90,7 @@ async function checkUrl(url) {
   } catch (error) {
     return {
       ok: false,
-      status: error.name === "AbortError" ? "Timeout" : "Connection failed",
+      status: error.name === 'AbortError' ? 'Timeout' : 'Connection failed',
     };
   }
 }
@@ -166,7 +167,7 @@ async function discoverSitemap(baseUrl) {
 
   for (const url of standardLocations) {
     try {
-      const response = await fetch(url, { method: "HEAD" });
+      const response = await fetch(url, { method: 'HEAD' });
       if (response.ok) {
         return url;
       }
@@ -195,7 +196,7 @@ async function getPagesFromSitemap(baseUrl) {
     const sitemapUrl = await discoverSitemap(baseUrl);
 
     if (!sitemapUrl) {
-      throw new Error("No sitemap found");
+      throw new Error('No sitemap found');
     }
 
     const response = await fetch(sitemapUrl);
@@ -217,7 +218,7 @@ async function getPagesFromSitemap(baseUrl) {
         // Extract path from sitemap URL (e.g., https://example.com/about -> /about)
         // Note: We extract paths regardless of domain because sitemaps often have
         // hardcoded production URLs even on preview deployments
-        const path = parsed.pathname || "/";
+        const path = parsed.pathname || '/';
         if (!pages.includes(path)) {
           pages.push(path);
         }
@@ -227,15 +228,15 @@ async function getPagesFromSitemap(baseUrl) {
     }
 
     if (pages.length === 0) {
-      throw new Error("No valid pages found in sitemap");
+      throw new Error('No valid pages found in sitemap');
     }
 
     return pages;
   } catch (error) {
     // Graceful fallback: if sitemap discovery/parsing fails, check homepage only
     console.error(`Error fetching sitemap: ${error.message}`);
-    console.error("Falling back to homepage only\n");
-    return ["/"];
+    console.error('Falling back to homepage only\n');
+    return ['/'];
   }
 }
 
@@ -271,11 +272,21 @@ async function crawlPage(path) {
 
       // Skip anchors, javascript, mailto, tel
       if (
-        href.startsWith("#") ||
-        href.startsWith("javascript:") ||
-        href.startsWith("mailto:") ||
-        href.startsWith("tel:")
+        href.startsWith('#') ||
+        href.startsWith('javascript:') ||
+        href.startsWith('mailto:') ||
+        href.startsWith('tel:') ||
+        href.includes('help.ion8.net')
       ) {
+        // Track skipped external links (not anchors/mailto/etc)
+        if (href.includes('help.ion8.net')) {
+          console.log(`  Skipped: ${href} (blocks automated requests)`);
+          results.skippedLinks.push({
+            page: path,
+            url: href,
+            reason: 'Blocks automated requests',
+          });
+        }
         continue;
       }
 
@@ -304,7 +315,12 @@ async function crawlPage(path) {
       const src = match[1];
 
       // Skip data URIs, SVG sprites, and Next.js image optimization URLs
-  if (src.startsWith("data:") || src.startsWith("#") || src.includes("/_next/image")) continue;
+      if (
+        src.startsWith('data:') ||
+        src.startsWith('#') ||
+        src.includes('/_next/image')
+      )
+        continue;
 
       const fullUrl = resolveUrl(src, pageUrl);
       if (!fullUrl || results.checkedImages.has(fullUrl)) continue;
@@ -387,15 +403,18 @@ function generateMarkdownReport() {
     report += `\n`;
   }
 
-  // Stats - table format like Lighthouse CI
+  // Stats
   report += `### 📊 Summary\n\n`;
   report += `| Metric | Count |\n`;
   report += `|--------|-------|\n`;
   report += `| **Pages crawled** | ${results.pagesCrawled} |\n`;
   report += `| **Links checked** | ${results.checkedLinks.size} |\n`;
   report += `| **Images checked** | ${results.checkedImages.size} |\n`;
-  report += `| **Internal errors** | ${internalBroken.length + results.missingImages.length} |\n`;
+  report += `| **Internal errors** | ${
+    internalBroken.length + results.missingImages.length
+  } |\n`;
   report += `| **External warnings** | ${externalBroken.length} |\n`;
+  report += `| **Skipped** | ${results.skippedLinks.length} |\n`;
 
   return report;
 }
@@ -412,9 +431,10 @@ function generateMarkdownReport() {
  * 5. Exits with code 1 if any broken links or missing images found
  */
 async function main() {
+  console.log(`Starting link checker for: ${BASE_URL}`);
   // Fetch pages from sitemap
   const pages = await getPagesFromSitemap(BASE_URL);
-
+  console.log(`Found ${pages.length} pages to check`);
   for (const page of pages) {
     await crawlPage(page);
   }
@@ -422,11 +442,13 @@ async function main() {
   const report = generateMarkdownReport();
 
   // Write report to file for GitHub Actions
-  fs.writeFileSync("link-checker-report.md", report);
+  fs.writeFileSync('link-checker-report.md', report);
 
-  // Exit with error if ANY broken links or missing images found
-  if (results.brokenLinks.length > 0 || results.missingImages.length > 0) {
-    console.error("\n❌ Found broken links or missing images!");
+  // Exit with error only for internal broken links or missing images
+  // External broken links are warnings only (shown in report but don't fail CI)
+  const internalBroken = results.brokenLinks.filter((l) => l.isInternal);
+  if (internalBroken.length > 0 || results.missingImages.length > 0) {
+    console.error('\n❌ Found broken internal links or missing images!');
     process.exit(1);
   }
 
