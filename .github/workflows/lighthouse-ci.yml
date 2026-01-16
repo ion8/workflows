@@ -90,7 +90,7 @@ jobs:
             
             # Build report link line if URL exists
             if [ -n "$REPORT_URL" ]; then
-              REPORT_LINK="[View Full Report]($REPORT_URL)"
+              REPORT_LINK="<a href=\"$REPORT_URL\" target=\"_blank\">View Full Report</a>"
             else
               REPORT_LINK=""
             fi
