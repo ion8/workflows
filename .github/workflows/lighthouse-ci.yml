@@ -37,29 +37,15 @@ jobs:
         if: always() && (github.event_name == 'pull_request' || inputs.pr_number)
         run: |
           PR_NUMBER="${{ inputs.pr_number }}"
-          # Find the median run report (middle performance score from 3 runs)
-          MEDIAN_REPORT=""
-          MEDIAN_SCORE=0
-          declare -a REPORTS
-          declare -a SCORES
-          
-          # Get all reports and their performance scores
-          for report in $(find .lighthouseci -name "lhr-*.json" | sort); do
-            score=$(cat "$report" | jq -r '.categories.performance.score * 100 | floor')
-            REPORTS+=("$report")
-            SCORES+=("$score")
-          done
-          
-          # Sort by score and pick the middle one (median)
-          if [ ${#REPORTS[@]} -eq 3 ]; then
-            # Create array of "score:index" pairs, sort, pick middle
-            sorted=$(for i in 0 1 2; do echo "${SCORES[$i]}:$i"; done | sort -n)
-            median_idx=$(echo "$sorted" | sed -n '2p' | cut -d: -f2)
-            REPORT_FILE="${REPORTS[$median_idx]}"
-            echo "Using median run (index $median_idx) with performance score ${SCORES[$median_idx]}"
-          elif [ ${#REPORTS[@]} -gt 0 ]; then
-            REPORT_FILE="${REPORTS[0]}"
-            echo "Using first available report"
+          # Find the median run report using LHCI's manifest.json
+          # LHCI marks the representative run with "isRepresentativeRun": true
+          if [ -f ".lighthouseci/manifest.json" ]; then
+            REPORT_FILE=$(cat .lighthouseci/manifest.json | jq -r '.[] | select(.isRepresentativeRun == true) | .jsonPath' | head -1)
+            echo "Using LHCI's median run: $REPORT_FILE"
+          else
+            # Fallback to first report if manifest doesn't exist
+            REPORT_FILE=$(find .lighthouseci -name "lhr-*.json" | head -1)
+            echo "Warning: manifest.json not found, using first available report"
           fi
           
           if [ -f "$REPORT_FILE" ]; then
