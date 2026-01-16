@@ -107,9 +107,10 @@ jobs:
             - **LCP:** ${LCP}
             - **TBT:** ${TBT}
             - **CLS:** ${CLS}
+            
+            $REPORT_LINK
             ---
-            _Tested on: Homepage (/) • Median of 3 runs • Commit: \`${GITHUB_SHA:0:7}\`_
-            $REPORT_LINK"
+            _Tested on: Homepage (/) • Median of 3 runs • Commit: \`${GITHUB_SHA:0:7}\`_"
             # Find existing Lighthouse comment
             COMMENT_ID=$(gh api \
               "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
