@@ -1,0 +1,51 @@
+name: "Determine URL"
+description: "Determines which URL to check based on maintenance label"
+inputs:
+  production_url:
+    description: "Production URL to fall back to"
+    required: true
+  preview_url:
+    description: "Preview URL from Vercel"
+    required: false
+    default: ""
+  input_url:
+    description: "Custom URL from workflow_dispatch input"
+    required: false
+    default: ""
+outputs:
+  url:
+    description: "The determined URL to use"
+    value: ${{ steps.determine.outputs.url }}
+runs:
+  using: "composite"
+  steps:
+    - name: Determine URL
+      id: determine
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const productionUrl = '${{ inputs.production_url }}';
+          const previewUrl = '${{ inputs.preview_url }}';
+          const inputUrl = '${{ inputs.input_url }}';
+
+          let url = '';
+          if (context.eventName === 'pull_request') {
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            
+            const isMaintenance = pr.labels.some(label => label.name === 'maintenance');
+            
+            if (isMaintenance) {
+              url = previewUrl || productionUrl;
+            } else {
+              url = previewUrl;
+            }
+          } else if (context.eventName === 'workflow_dispatch') {
+            url = inputUrl || productionUrl;
+          } else {
+            url = productionUrl;
+          }
+          core.setOutput('url', url);
