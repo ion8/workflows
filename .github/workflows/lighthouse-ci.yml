@@ -22,6 +22,7 @@ jobs:
         with:
           repository: ion8/workflows
           path: .workflows
+          # ref: seema/branch-name # only add this when testing from a branch other than main
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -32,12 +33,39 @@ jobs:
           cat .workflows/lighthouserc.json
           echo "=== Running LHCI with verbose output ==="
           lhci autorun --config=.workflows/lighthouserc.json --collect.url="${{ inputs.preview_url }}" --collect.startServerCommand="" --verbose
+          
+          # Upload to temporary storage to get public report link
+          echo "=== Uploading to temporary public storage ==="
+          UPLOAD_OUTPUT=$(lhci upload --target=temporary-public-storage 2>&1) || true
+          REPORT_URL=$(echo "$UPLOAD_OUTPUT" | grep -oE 'https://storage\.googleapis\.com/[^[:space:]]+\.html' | head -1)
+          echo "Report URL: $REPORT_URL"
+          echo "REPORT_URL=$REPORT_URL" >> $GITHUB_ENV
       - name: Post Lighthouse results to PR
         if: always() && (github.event_name == 'pull_request' || inputs.pr_number)
         run: |
           PR_NUMBER="${{ inputs.pr_number }}"
-          # Find the Lighthouse report (only 1 run, so only 1 file)
-          REPORT_FILE=$(find .lighthouseci -name "lhr-*.json" | head -1)
+          # Find the median run report from manifest.json
+          # We calculate the median from summary.performance scores since LHCI's
+          # isRepresentativeRun uses a different algorithm than median-run assertions
+          if [ -f ".lighthouseci/manifest.json" ]; then
+            # Sort by performance score and pick the middle one (actual median)
+            REPORT_FILE=$(cat .lighthouseci/manifest.json | jq -r '
+              sort_by(.summary.performance) | 
+              .[length/2 | floor] | 
+              .jsonPath
+            ')
+            PERF_SCORE=$(cat .lighthouseci/manifest.json | jq -r '
+              sort_by(.summary.performance) | 
+              .[length/2 | floor] | 
+              .summary.performance
+            ')
+            echo "Using median run with performance score: $PERF_SCORE"
+            echo "Report file: $REPORT_FILE"
+          else
+            # Fallback to first report if manifest doesn't exist
+            REPORT_FILE=$(find .lighthouseci -name "lhr-*.json" | head -1)
+            echo "Warning: manifest.json not found, using first available report"
+          fi
           
           if [ -f "$REPORT_FILE" ]; then
             # Parse scores using jq
@@ -59,6 +87,14 @@ jobs:
             A11Y_EMOJI=$(get_emoji $A11Y)
             BP_EMOJI=$(get_emoji $BP)
             SEO_EMOJI=$(get_emoji $SEO)
+            
+            # Build report link line if URL exists
+            if [ -n "$REPORT_URL" ]; then
+              REPORT_LINK="<a href=\"$REPORT_URL\" target=\"_blank\">View Full Report</a>"
+            else
+              REPORT_LINK=""
+            fi
+            
             # Create comment body
             COMMENT_BODY="## 🚦 Lighthouse CI Results
             | Category | Score |
@@ -71,8 +107,10 @@ jobs:
             - **LCP:** ${LCP}
             - **TBT:** ${TBT}
             - **CLS:** ${CLS}
+            
+            $REPORT_LINK
             ---
-            _Tested on: Homepage (/) • Commit: \`${GITHUB_SHA:0:7}\`_"
+            _Tested on: Homepage (/) • Median of 3 runs • Commit: \`${GITHUB_SHA:0:7}\`_"
             # Find existing Lighthouse comment
             COMMENT_ID=$(gh api \
               "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
