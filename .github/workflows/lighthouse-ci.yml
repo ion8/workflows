@@ -84,8 +84,8 @@ jobs:
             CLS=$(cat "$REPORT_FILE" | jq -r '.audits["cumulative-layout-shift"].displayValue')
             # Determine emoji based on score
             get_emoji() {
-              if [ $1 -ge 90 ]; then echo "🟢"
-              elif [ $1 -ge 70 ]; then echo "🟡"
+              if [ $1 -ge 80 ]; then echo "🟢"
+              elif [ $1 -ge 60 ]; then echo "🟡"
               else echo "🔴"
               fi
             }
