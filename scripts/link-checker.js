@@ -416,6 +416,11 @@ function generateMarkdownReport() {
   report += `| **External warnings** | ${externalBroken.length} |\n`;
   report += `| **Skipped** | ${results.skippedLinks.length} |\n`;
 
+  // Add note if links were skipped
+  if (results.skippedLinks.length > 0) {
+    report += `\n_*ℹ️ ${results.skippedLinks.length} link(s) were skipped (e.g., sites that block automated requests). Check the CI logs for details.*_\n`;
+  }
+
   return report;
 }
 
