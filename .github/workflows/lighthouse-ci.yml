@@ -28,18 +28,24 @@ jobs:
           node-version: '22'
       - name: Run Lighthouse CI
         run: |
+          set +e  # Don't exit on error immediately
           yarn global add @lhci/cli
           echo "=== Verifying config file exists and content ==="
           cat .workflows/lighthouserc.json
           echo "=== Running LHCI with verbose output ==="
           lhci autorun --config=.workflows/lighthouserc.json --collect.url="${{ inputs.preview_url }}" --collect.startServerCommand="" --verbose
+          LHCI_EXIT_CODE=$?
           
-          # Upload to temporary storage to get public report link
+          # Upload to temporary storage to get public report link (always run even if assertions failed)
           echo "=== Uploading to temporary public storage ==="
           UPLOAD_OUTPUT=$(lhci upload --target=temporary-public-storage 2>&1) || true
           REPORT_URL=$(echo "$UPLOAD_OUTPUT" | grep -oE 'https://storage\.googleapis\.com/[^[:space:]]+\.html' | head -1)
           echo "Report URL: $REPORT_URL"
           echo "REPORT_URL=$REPORT_URL" >> $GITHUB_ENV
+          echo "LHCI_EXIT_CODE=$LHCI_EXIT_CODE" >> $GITHUB_ENV
+          
+          # Exit with the original exit code to mark step as failed if assertions failed
+          exit $LHCI_EXIT_CODE
       - name: Post Lighthouse results to PR
         if: always() && (github.event_name == 'pull_request' || inputs.pr_number)
         run: |
@@ -95,6 +101,13 @@ jobs:
               REPORT_LINK=""
             fi
             
+            # Add warning note if assertions failed
+            if [ -n "$LHCI_EXIT_CODE" ] && [ "$LHCI_EXIT_CODE" != "0" ]; then
+              WARNING_NOTE="_*⚠️ Performance scores can vary due to network conditions. Consider re-running the job or testing with [PageSpeed Insights](https://pagespeed.web.dev/) on the production URL for more stable results.*_"
+            else
+              WARNING_NOTE=""
+            fi
+            
             # Create comment body
             COMMENT_BODY="## 🚦 Lighthouse CI Results
             | Category | Score |
@@ -110,7 +123,8 @@ jobs:
             
             $REPORT_LINK
             ---
-            _Tested on: Homepage (/) • Median of 3 runs • Commit: \`${GITHUB_SHA:0:7}\`_"
+            _Tested on: Homepage (/) • Median of 3 runs • Commit: \`${GITHUB_SHA:0:7}\`_
+            $WARNING_NOTE"
             # Find existing Lighthouse comment
             COMMENT_ID=$(gh api \
               "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
