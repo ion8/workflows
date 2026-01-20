@@ -22,7 +22,7 @@ jobs:
         with:
           repository: ion8/workflows
           path: .workflows
-          ref: seema/reduce-performance-threshold # only add this when testing from a branch other than main
+          # ref: seema/branch-name # only add this when testing from a branch other than main
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
