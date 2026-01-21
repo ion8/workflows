@@ -186,6 +186,7 @@ async function discoverSitemap(baseUrl) {
  * @returns {Promise<string[]>} Array of page paths (e.g., ["/", "/about", "/contact"])
  * @remarks
  * - Uses discoverSitemap() to find the sitemap location
+ * - Handles both sitemap indexes (<sitemapindex>) and regular sitemaps (<urlset>)
  * - Extracts <loc> tags per https://www.sitemaps.org/protocol.html
  * - Returns paths only (strips domain) to work with preview deployments
  * - Falls back to ["/"] (homepage only) if sitemap discovery/parsing fails
@@ -206,38 +207,113 @@ async function getPagesFromSitemap(baseUrl) {
 
     const xml = await response.text();
 
-    // Extract all <loc> tags from sitemap XML
-    // Format: <loc>https://example.com/page</loc>
-    const locMatches = xml.matchAll(/<loc>(.*?)<\/loc>/g);
-    const pages = [];
-
-    for (const match of locMatches) {
-      const url = match[1];
-      try {
-        const parsed = new URL(url);
-        // Extract path from sitemap URL (e.g., https://example.com/about -> /about)
-        // Note: We extract paths regardless of domain because sitemaps often have
-        // hardcoded production URLs even on preview deployments
-        const path = parsed.pathname || '/';
-        if (!pages.includes(path)) {
-          pages.push(path);
-        }
-      } catch (error) {
-        console.warn(`  Skipping invalid URL from sitemap: ${url}`);
-      }
+    // Check if this is a sitemap index (contains nested sitemaps)
+    if (xml.includes('<sitemapindex')) {
+      console.log('  Detected sitemap index, fetching nested sitemaps...');
+      return await getPagesFromSitemapIndex(xml, baseUrl);
     }
 
-    if (pages.length === 0) {
-      throw new Error('No valid pages found in sitemap');
-    }
-
-    return pages;
+    // Regular sitemap - extract page URLs directly
+    return extractPagesFromSitemap(xml);
   } catch (error) {
     // Graceful fallback: if sitemap discovery/parsing fails, check homepage only
     console.error(`Error fetching sitemap: ${error.message}`);
     console.error('Falling back to homepage only\n');
     return ['/'];
   }
+}
+
+/**
+ * Extracts page paths from a regular sitemap XML
+ *
+ * @param {string} xml - The sitemap XML content
+ * @returns {string[]} Array of page paths
+ */
+function extractPagesFromSitemap(xml) {
+  const locMatches = xml.matchAll(/<loc>(.*?)<\/loc>/g);
+  const pages = [];
+
+  for (const match of locMatches) {
+    const url = match[1];
+    try {
+      const parsed = new URL(url);
+      // Extract path from sitemap URL (e.g., https://example.com/about -> /about)
+      // Note: We extract paths regardless of domain because sitemaps often have
+      // hardcoded production URLs even on preview deployments
+      const path = parsed.pathname || '/';
+      if (!pages.includes(path)) {
+        pages.push(path);
+      }
+    } catch (error) {
+      console.warn(`  Skipping invalid URL from sitemap: ${url}`);
+    }
+  }
+
+  if (pages.length === 0) {
+    throw new Error('No valid pages found in sitemap');
+  }
+
+  return pages;
+}
+
+/**
+ * Fetches and extracts pages from a sitemap index
+ *
+ * @param {string} xml - The sitemap index XML content
+ * @param {string} baseUrl - The base URL of the website
+ * @returns {Promise<string[]>} Array of page paths from all nested sitemaps
+ */
+async function getPagesFromSitemapIndex(xml, baseUrl) {
+  // Extract nested sitemap URLs from <sitemap><loc> tags
+  const sitemapMatches = xml.matchAll(/<sitemap>.*?<loc>(.*?)<\/loc>.*?<\/sitemap>/gs);
+  const nestedSitemapUrls = [];
+
+  for (const match of sitemapMatches) {
+    nestedSitemapUrls.push(match[1]);
+  }
+
+  if (nestedSitemapUrls.length === 0) {
+    throw new Error('No nested sitemaps found in sitemap index');
+  }
+
+  console.log(`  Found ${nestedSitemapUrls.length} nested sitemap(s)`);
+
+  // Fetch all nested sitemaps and extract pages
+  const allPages = [];
+
+  for (const sitemapUrl of nestedSitemapUrls) {
+    try {
+      // Resolve the sitemap URL (might be relative or absolute)
+      const fullSitemapUrl = new URL(sitemapUrl, baseUrl).href;
+      console.log(`  Fetching nested sitemap: ${fullSitemapUrl}`);
+
+      const response = await fetch(fullSitemapUrl);
+      if (!response.ok) {
+        console.warn(`  Failed to fetch nested sitemap ${fullSitemapUrl}: ${response.status}`);
+        continue;
+      }
+
+      const nestedXml = await response.text();
+      const pages = extractPagesFromSitemap(nestedXml);
+      
+      console.log(`  Found ${pages.length} page(s) in ${sitemapUrl}`);
+      
+      // Add pages, avoiding duplicates
+      for (const page of pages) {
+        if (!allPages.includes(page)) {
+          allPages.push(page);
+        }
+      }
+    } catch (error) {
+      console.warn(`  Error processing nested sitemap ${sitemapUrl}: ${error.message}`);
+    }
+  }
+
+  if (allPages.length === 0) {
+    throw new Error('No valid pages found in any nested sitemaps');
+  }
+
+  return allPages;
 }
 
 /**
@@ -258,7 +334,7 @@ async function crawlPage(path) {
   try {
     const response = await fetch(pageUrl);
     if (!response.ok) {
-      console.error(`  Failed to fetch page: ${response.status}`);
+      console.error(`  Failed to fetch page ${path}: ${response.status}`);
       return;
     }
 
