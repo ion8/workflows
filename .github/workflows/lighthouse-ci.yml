@@ -82,17 +82,36 @@ jobs:
             LCP=$(cat "$REPORT_FILE" | jq -r '.audits["largest-contentful-paint"].displayValue')
             TBT=$(cat "$REPORT_FILE" | jq -r '.audits["total-blocking-time"].displayValue')
             CLS=$(cat "$REPORT_FILE" | jq -r '.audits["cumulative-layout-shift"].displayValue')
-            # Determine emoji based on score
-            get_emoji() {
-              if [ $1 -ge 80 ]; then echo "🟢"
+            # Determine emoji based on score - thresholds match CI assertions
+            # 🟢 = comfortably passing, 🟡 = at threshold, 🔴 = failing
+            get_perf_emoji() {
+              if [ $1 -ge 70 ]; then echo "🟢"
               elif [ $1 -ge 60 ]; then echo "🟡"
               else echo "🔴"
               fi
             }
-            PERF_EMOJI=$(get_emoji $PERF)
-            A11Y_EMOJI=$(get_emoji $A11Y)
-            BP_EMOJI=$(get_emoji $BP)
-            SEO_EMOJI=$(get_emoji $SEO)
+            get_a11y_emoji() {
+              if [ $1 -ge 90 ]; then echo "🟢"
+              elif [ $1 -ge 80 ]; then echo "🟡"
+              else echo "🔴"
+              fi
+            }
+            get_bp_emoji() {
+              if [ $1 -ge 90 ]; then echo "🟢"
+              elif [ $1 -ge 80 ]; then echo "🟡"
+              else echo "🔴"
+              fi
+            }
+            get_seo_emoji() {
+              if [ $1 -ge 95 ]; then echo "🟢"
+              elif [ $1 -ge 90 ]; then echo "🟡"
+              else echo "🔴"
+              fi
+            }
+            PERF_EMOJI=$(get_perf_emoji $PERF)
+            A11Y_EMOJI=$(get_a11y_emoji $A11Y)
+            BP_EMOJI=$(get_bp_emoji $BP)
+            SEO_EMOJI=$(get_seo_emoji $SEO)
             
             # Build report link line if URL exists
             if [ -n "$REPORT_URL" ]; then
