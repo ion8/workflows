@@ -432,7 +432,7 @@ async function crawlPage(path) {
  */
 function generateMarkdownReport() {
   const internalBroken = results.brokenLinks.filter((l) => l.isInternal);
-  const externalBroken = results.brokenLinks.filter((l) => !l.isInternal);
+  const externalBroken = results.brokenLinks.filter((l) => !l.isInternal && l.status === 404);
 
   let report = `## 🔗 Link Checker Results\n\n`;
 
