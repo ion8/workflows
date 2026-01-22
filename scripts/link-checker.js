@@ -452,7 +452,7 @@ function generateMarkdownReport() {
     report += `| Page | Broken Link | Status |\n`;
     report += `|------|-------------|--------|\n`;
     for (const link of internalBroken) {
-      report += `| ${link.page} | \`${link.url}\` | ${link.status} |\n`;
+      report += `| ${link.page} | [${link.url}](${link.fullUrl}) | ${link.status} |\n`;
     }
     report += `\n`;
   }
@@ -463,18 +463,18 @@ function generateMarkdownReport() {
     report += `| Page | Image Source | Status |\n`;
     report += `|------|--------------|--------|\n`;
     for (const img of results.missingImages) {
-      report += `| ${img.page} | \`${img.src}\` | ${img.status} |\n`;
+      report += `| ${img.page} | [${img.src}](${img.fullUrl}) | ${img.status} |\n`;
     }
     report += `\n`;
   }
 
   // External broken links (warnings)
   if (externalBroken.length > 0) {
-    report += `### ⚠️ Broken External Links (${externalBroken.length} found)\n\n`;
-    report += `| Page | Broken Link | Status |\n`;
-    report += `|------|-------------|--------|\n`;
+    report += `### ⚠️ External Link Warnings (${externalBroken.length} found)\n\n`;
+    report += `| Page | Link | Status |\n`;
+    report += `|------|------|--------|\n`;
     for (const link of externalBroken) {
-      report += `| ${link.page} | \`${link.url}\` | ${link.status} |\n`;
+      report += `| ${link.page} | [${link.url}](${link.fullUrl}) | ${link.status} |\n`;
     }
     report += `\n`;
   }
