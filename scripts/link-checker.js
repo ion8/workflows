@@ -386,7 +386,7 @@ async function crawlPage(path) {
     }
 
     // Extract images
-    const imgMatches = html.matchAll(/src=["']([^"']+)["']/g);
+    const imgMatches = html.matchAll(/<img[^>]+src=["']([^"']+)["']/g);
     for (const match of imgMatches) {
       const src = match[1];
 
