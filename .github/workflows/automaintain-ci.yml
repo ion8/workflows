@@ -1,0 +1,108 @@
+name: AutoMaintain CI
+
+on:
+  workflow_call:
+    inputs:
+      website_url:
+        required: true
+        type: string
+        description: "Production URL to run checks against"
+    outputs:
+      pr_number:
+        description: "The PR number created by this workflow"
+        value: ${{ jobs.create-maintenance-pr.outputs.pr_number }}
+    secrets:
+      LHCI_GITHUB_APP_TOKEN:
+        required: true
+
+jobs:
+  create-maintenance-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      pr_number: ${{ steps.create-pr.outputs.pr_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate branch and PR names
+        id: names
+        run: |
+          MONTH_NAME=$(date +"%b")
+          YEAR=$(date +"%Y")
+          MONTH_LOWER=$(echo "$MONTH_NAME" | tr '[:upper:]' '[:lower:]')
+
+          BRANCH_NAME="${MONTH_LOWER}-${YEAR}-automaintain"
+          PR_TITLE="${MONTH_NAME} ${YEAR} - AutoMaintain"
+
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
+          echo "month_year=${MONTH_NAME} ${YEAR}" >> $GITHUB_OUTPUT
+
+      - name: Create and push empty branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b ${{ steps.names.outputs.branch_name }}
+          git commit --allow-empty -m "chore: ${{ steps.names.outputs.month_year }} maintenance"
+          git push origin ${{ steps.names.outputs.branch_name }}
+
+      - name: Create Pull Request
+        id: create-pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const monthYear = '${{ steps.names.outputs.month_year }}';
+
+            const body = `## 🔧 ${monthYear} - AutoMaintain
+
+            Monthly maintenance checks.
+
+            The link checker and Lighthouse CI will automatically run and post results as comments below.
+
+            **To fix issues:**
+            1. Review the results in the comments
+            2. Run \`git fetch origin && git checkout ${{ steps.names.outputs.branch_name }} && git pull\`
+            3. Fix any broken links or issues
+            4. Commit your fixes to this branch
+            5. Request review when ready
+
+            ---
+            _This PR was automatically created by the monthly maintenance workflow._`;
+
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '${{ steps.names.outputs.pr_title }}',
+              head: '${{ steps.names.outputs.branch_name }}',
+              base: 'main',
+              body: body,
+            });
+
+            // Add labels
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              labels: ['maintenance', 'automated'],
+            });
+
+            core.setOutput('pr_number', pr.number);
+            console.log(`Created PR #${pr.number}: ${pr.html_url}`);
+
+  call-link-checker:
+    needs: create-maintenance-pr
+    uses: ion8/workflows/.github/workflows/link-checker-ci.yml@main
+    with:
+      url: ${{ inputs.website_url }}
+      pr_number: ${{ needs.create-maintenance-pr.outputs.pr_number }}
+
+  call-lighthouse-ci:
+    needs: create-maintenance-pr
+    uses: ion8/workflows/.github/workflows/lighthouse-ci.yml@main
+    with:
+      preview_url: ${{ inputs.website_url }}
+      pr_number: ${{ needs.create-maintenance-pr.outputs.pr_number }}
+    secrets:
+      LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
