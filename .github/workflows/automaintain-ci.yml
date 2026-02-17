@@ -14,6 +14,8 @@ on:
     secrets:
       LHCI_GITHUB_APP_TOKEN:
         required: true
+      SLACK_WEBHOOK_URL: # incoming from the calling workflow to use in the notify-slack job
+        required: true
 
 jobs:
   create-maintenance-pr:
