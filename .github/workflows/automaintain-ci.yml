@@ -162,9 +162,6 @@ jobs:
           REPO="${{ github.repository }}"
           PR_URL="https://github.com/${REPO}/pull/${PR_NUMBER}"
           
-          # Extract just the repo name (without org prefix) for Client field
-          CLIENT=$(echo "$REPO" | cut -d'/' -f2)
-          
           # Build message based on status
           if [ "${{ steps.results.outputs.status }}" == "failed" ]; then
             EMOJI="🔴"
@@ -175,7 +172,7 @@ jobs:
             STATUS_LINE="${EMOJI} All checks passed"
           fi
           
-          MESSAGE="${STATUS_LINE}\n*PR:* <${PR_URL}|${PR_TITLE}>\n*Client:* ${CLIENT}\n*Date:* ${DATE}"
+          MESSAGE="${STATUS_LINE}\n*PR:* <${PR_URL}|${PR_TITLE}>\n*Repo:* ${REPO}\n*Date:* ${DATE}"
           
           # Send to Slack via webhook
           curl -X POST -H 'Content-type: application/json' \
