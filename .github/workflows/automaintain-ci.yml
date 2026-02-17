@@ -128,6 +128,11 @@ jobs:
         run: |
           FAILED=""
           
+          # Check if PR creation failed first
+          if [ "${{ needs.create-maintenance-pr.result }}" == "failure" ]; then
+            FAILED="${FAILED}PR Creation, "
+          fi
+          
           # Check each job result and build list of failures
           if [ "${{ needs.call-link-checker.result }}" == "failure" ]; then
             FAILED="${FAILED}Link Checker, "
@@ -160,19 +165,28 @@ jobs:
         run: |
           DATE=$(date +"%b %d, %Y")
           REPO="${{ github.repository }}"
-          PR_URL="https://github.com/${REPO}/pull/${PR_NUMBER}"
+          REPO_URL="https://github.com/${REPO}"
           
           # Build message based on status
           if [ "${{ steps.results.outputs.status }}" == "failed" ]; then
             EMOJI="🔴"
             FAILED_CHECKS="${{ steps.results.outputs.failed_checks }}"
             STATUS_LINE="${EMOJI} Failed: ${FAILED_CHECKS}"
+            
+            # If PR was created, include PR link
+            if [ -n "$PR_NUMBER" ]; then
+              PR_URL="https://github.com/${REPO}/pull/${PR_NUMBER}"
+              MESSAGE="${STATUS_LINE}\n*PR:* <${PR_URL}|${PR_TITLE}>\n*Repo:* <${REPO_URL}|${REPO}>\n*Date:* ${DATE}"
+            else
+              # PR creation failed, no PR link
+              MESSAGE="${STATUS_LINE}\n*Repo:* <${REPO_URL}|${REPO}>\n*Date:* ${DATE}"
+            fi
           else
             EMOJI="✅"
             STATUS_LINE="${EMOJI} All checks passed"
+            PR_URL="https://github.com/${REPO}/pull/${PR_NUMBER}"
+            MESSAGE="${STATUS_LINE}\n*PR:* <${PR_URL}|${PR_TITLE}>\n*Repo:* <${REPO_URL}|${REPO}>\n*Date:* ${DATE}"
           fi
-          
-          MESSAGE="${STATUS_LINE}\n*PR:* <${PR_URL}|${PR_TITLE}>\n*Repo:* ${REPO}\n*Date:* ${DATE}"
           
           # Send to Slack via webhook
           curl -X POST -H 'Content-type: application/json' \
