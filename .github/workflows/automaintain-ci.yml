@@ -106,3 +106,71 @@ jobs:
       pr_number: ${{ needs.create-maintenance-pr.outputs.pr_number }}
     secrets:
       LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+  # ============================================================================
+  # Slack Notification Job
+  # ============================================================================
+  # Sends a single notification to Slack after all checks complete
+  # - Runs even if previous jobs fail (if: always())
+  # - Reports which checks failed or confirms all passed
+  # - Extensible: Add new checks by updating the needs array and results step
+  # ============================================================================
+  notify-slack:
+    needs: [create-maintenance-pr, call-link-checker, call-lighthouse-ci]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine results
+        id: results
+        run: |
+          FAILED=""
+          
+          # Check each job result and build list of failures
+          if [ "${{ needs.call-link-checker.result }}" == "failure" ]; then
+            FAILED="${FAILED}Link Checker, "
+          fi
+          
+          if [ "${{ needs.call-lighthouse-ci.result }}" == "failure" ]; then
+            FAILED="${FAILED}Lighthouse, "
+          fi
+          
+          # When adding new checks:
+          # 1. Add the job to the needs array above
+          # 2. Add a check here following the same pattern
+          
+          # Trim trailing comma and space
+          FAILED="${FAILED%, }"
+          
+          # Set outputs for next step
+          if [ -n "$FAILED" ]; then
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "failed_checks=$FAILED" >> $GITHUB_OUTPUT
+          else
+            echo "status=passed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Slack notification
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          PR_NUMBER: ${{ needs.create-maintenance-pr.outputs.pr_number }}
+        run: |
+          DATE=$(date +"%b %d, %Y")
+          REPO="${{ github.repository }}"
+          PR_URL="https://github.com/${REPO}/pull/${PR_NUMBER}"
+          
+          # Build message based on status
+          if [ "${{ steps.results.outputs.status }}" == "failed" ]; then
+            EMOJI="🔴"
+            TITLE="AutoMaintain Failed"
+            FAILED_CHECKS="${{ steps.results.outputs.failed_checks }}"
+            MESSAGE="${EMOJI} *${TITLE}*\n*Repo:* ${REPO}\n*PR:* <${PR_URL}|#${PR_NUMBER}>\n*Date:* ${DATE}\n*Failed:* ${FAILED_CHECKS}"
+          else
+            EMOJI="✅"
+            TITLE="AutoMaintain Ready for Review"
+            MESSAGE="${EMOJI} *${TITLE}*\n*Repo:* ${REPO}\n*PR:* <${PR_URL}|#${PR_NUMBER}>\n*Date:* ${DATE}\n*All checks passed*"
+          fi
+          
+          # Send to Slack via webhook
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\": \"${MESSAGE}\"}" \
+            "${SLACK_WEBHOOK_URL}"
