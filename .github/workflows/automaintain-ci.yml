@@ -25,6 +25,7 @@ jobs:
       pull-requests: write
     outputs:
       pr_number: ${{ steps.create-pr.outputs.pr_number }}
+      pr_title: ${{ steps.names.outputs.pr_title }}
     steps:
       - uses: actions/checkout@v4
 
@@ -155,22 +156,26 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           PR_NUMBER: ${{ needs.create-maintenance-pr.outputs.pr_number }}
+          PR_TITLE: ${{ needs.create-maintenance-pr.outputs.pr_title }}
         run: |
           DATE=$(date +"%b %d, %Y")
           REPO="${{ github.repository }}"
           PR_URL="https://github.com/${REPO}/pull/${PR_NUMBER}"
           
+          # Extract just the repo name (without org prefix) for Client field
+          CLIENT=$(echo "$REPO" | cut -d'/' -f2)
+          
           # Build message based on status
           if [ "${{ steps.results.outputs.status }}" == "failed" ]; then
             EMOJI="🔴"
-            TITLE="AutoMaintain Failed"
             FAILED_CHECKS="${{ steps.results.outputs.failed_checks }}"
-            MESSAGE="${EMOJI} *${TITLE}*\n*Repo:* ${REPO}\n*PR:* <${PR_URL}|#${PR_NUMBER}>\n*Date:* ${DATE}\n*Failed:* ${FAILED_CHECKS}"
+            STATUS_LINE="${EMOJI} Failed: ${FAILED_CHECKS}"
           else
             EMOJI="✅"
-            TITLE="AutoMaintain Ready for Review"
-            MESSAGE="${EMOJI} *${TITLE}*\n*Repo:* ${REPO}\n*PR:* <${PR_URL}|#${PR_NUMBER}>\n*Date:* ${DATE}\n*All checks passed*"
+            STATUS_LINE="${EMOJI} All checks passed"
           fi
+          
+          MESSAGE="${STATUS_LINE}\n*PR:* <${PR_URL}|${PR_TITLE}>\n*Client:* ${CLIENT}\n*Date:* ${DATE}"
           
           # Send to Slack via webhook
           curl -X POST -H 'Content-type: application/json' \
