@@ -14,8 +14,6 @@ on:
     secrets:
       LHCI_GITHUB_APP_TOKEN:
         required: true
-      SLACK_WEBHOOK_URL: # incoming from the calling workflow to use in the notify-slack job
-        required: true
 
 jobs:
   create-maintenance-pr:
@@ -159,7 +157,7 @@ jobs:
 
       - name: Send Slack notification
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          AUTOMAINTAIN_SLACK_WEBHOOK_URL: ${{ secrets.AUTOMAINTAIN_SLACK_WEBHOOK_URL }}
           PR_NUMBER: ${{ needs.create-maintenance-pr.outputs.pr_number }}
           PR_TITLE: ${{ needs.create-maintenance-pr.outputs.pr_title }}
         run: |
@@ -191,4 +189,4 @@ jobs:
           # Send to Slack via webhook
           curl -X POST -H 'Content-type: application/json' \
             --data "{\"text\": \"${MESSAGE}\"}" \
-            "${SLACK_WEBHOOK_URL}"
+            "${AUTOMAINTAIN_SLACK_WEBHOOK_URL}"
