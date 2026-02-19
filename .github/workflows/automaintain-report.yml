@@ -1,0 +1,120 @@
+name: AutoMaintain Report
+
+# ============================================================================
+# AutoMaintain Report Workflow
+# ============================================================================
+# Purpose:
+#   - Triggered when an AutoMaintain PR is merged
+#   - Fetches URLs to Link Checker and Lighthouse comments from PR
+#   - Creates a Confluence page with links to the results
+#   - Posts Slack notification with link to the Confluence page
+#
+# This is a reusable workflow called by individual repo workflows.
+# ============================================================================
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        required: true
+        type: string
+        description: "PR number that was merged"
+      pr_title:
+        required: true
+        type: string
+        description: "PR title"
+
+jobs:
+  create-confluence-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout workflows repo
+        uses: actions/checkout@v4
+        with:
+          repository: ion8/workflows
+          path: .workflows
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Fetch PR comment URLs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node .workflows/scripts/fetch-pr-comments.js \
+            ${{ github.repository_owner }} \
+            ${{ github.event.repository.name }} \
+            ${{ inputs.pr_number }}
+
+      - name: Read comment URLs
+        id: comment_urls
+        run: |
+          if [ -f comment-urls.json ]; then
+            LINK_CHECKER_URL=$(cat comment-urls.json | jq -r '.linkCheckerUrl // "N/A"')
+            LIGHTHOUSE_URL=$(cat comment-urls.json | jq -r '.lighthouseUrl // "N/A"')
+            echo "link_checker_url=$LINK_CHECKER_URL" >> $GITHUB_OUTPUT
+            echo "lighthouse_url=$LIGHTHOUSE_URL" >> $GITHUB_OUTPUT
+          else
+            echo "Error: comment-urls.json not found"
+            exit 1
+          fi
+
+      - name: Create Confluence page
+        env:
+          CONFLUENCE_API_TOKEN: ${{ secrets.AUTOMAINTAIN_CONFLUENCE_API_TOKEN }}
+          CONFLUENCE_USER_EMAIL: ${{ secrets.AUTOMAINTAIN_CONFLUENCE_USER_EMAIL }}
+          CONFLUENCE_BASE_URL: ${{ vars.AUTOMAINTAIN_CONFLUENCE_BASE_URL }}
+          CONFLUENCE_SPACE_ID: ${{ vars.AUTOMAINTAIN_CONFLUENCE_SPACE_ID }}
+          CONFLUENCE_PARENT_PAGE_ID: ${{ vars.AUTOMAINTAIN_CONFLUENCE_PARENT_PAGE_ID }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          PR_TITLE: ${{ inputs.pr_title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          MERGED_DATE: ${{ github.event.pull_request.merged_at }}
+          REPO_NAME: ${{ github.repository }}
+          REPO_URL: ${{ github.event.repository.html_url }}
+          LINK_CHECKER_URL: ${{ steps.comment_urls.outputs.link_checker_url }}
+          LIGHTHOUSE_URL: ${{ steps.comment_urls.outputs.lighthouse_url }}
+        run: |
+          # Format the merged date
+          MERGED_DATE=$(date -d "${{ github.event.pull_request.merged_at }}" +"%b %d, %Y" 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "${{ github.event.pull_request.merged_at }}" +"%b %d, %Y")
+          export MERGED_DATE
+          
+          node .workflows/scripts/create-confluence-page.js
+
+      - name: Read Confluence page URL
+        id: confluence
+        run: |
+          if [ -f confluence-page-url.txt ]; then
+            PAGE_URL=$(cat confluence-page-url.txt)
+            echo "page_url=$PAGE_URL" >> $GITHUB_OUTPUT
+            echo "Confluence page URL: $PAGE_URL"
+          else
+            echo "Error: confluence-page-url.txt not found"
+            exit 1
+          fi
+
+      - name: Send Slack notification
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.AUTOMAINTAIN_SLACK_WEBHOOK_URL }}
+        run: |
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          REPO_URL="${{ github.event.repository.html_url }}"
+          REPO_NAME="${{ github.repository }}"
+          CONFLUENCE_URL="${{ steps.confluence.outputs.page_url }}"
+          
+          MESSAGE="📝 *AutoMaintain Report Draft Created*\n*PR:* <${PR_URL}|#${{ inputs.pr_number }} - ${{ inputs.pr_title }}>\n*Repo:* <${REPO_URL}|${REPO_NAME}>\n*Confluence:* <${CONFLUENCE_URL}|Review and publish draft>"
+          
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\": \"${MESSAGE}\"}" \
+            "${SLACK_WEBHOOK_URL}"
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: confluence-report-artifacts
+          path: |
+            comment-urls.json
+            confluence-page-url.txt
