@@ -23,38 +23,34 @@ jobs:
         env:
             OPENAI_API_KEY: ${{ secrets.OPENAI_CODE_REVIEW_API_KEY }}
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            # Custom review instructions
-            pr_reviewer.extra_instructions: |
-                Act as a context-aware senior reviewer.
-
-                Always:
-                    - Review for correctness, security issues, performance risks, and unsafe patterns.
-                    - Communicate that the user commenting the /improve command will cause
-                    the agent to create code suggestions based on the reviewers feedback.
-
-                Exception hygiene:
-                    - Scan changed code for raised exceptions.
-                    - Compare against exceptions.py.
-                    - If an exception is missing, vague, or mismatched:
-                        * Suggest creating a specific Exception subclass.
-                        * Suggest updating all raise sites to use it.
-
-                Documentation sync:
-                    - Only when public behavior or configuration changes:
-                        * Suggest README updates.
-                        * Suggest env.py or .env.example updates for any added or modified ENV vars.
-                    - Do NOT request doc changes for trivial/internal refactors.
-
-                Noise control:
-                    - If the PR is small or low-impact:
-                        * Keep feedback brief.
-                        * Do not auto-generate documentation or refactor suggestions.
-
-                Output rules:
-                    - Use GitHub suggested-change diff blocks for any code modifications.
-                    - Avoid repetitive or stylistic nitpicks.
-                    - Post comments only when actionable improvement exists.
-            # Tool configuration
+            # ===== Tool Toggles =====
             github_action_config.auto_review: "true"
-            github_action_config.auto_describe: "true"
+            github_action_config.auto_describe: "false"
             github_action_config.auto_improve: "false"
+
+            # ===== Review Settings =====
+            # Disable verbose sections that add noise
+            pr_reviewer.require_score_review: "false"
+            pr_reviewer.require_tests_review: "false"
+            pr_reviewer.require_estimate_effort_to_review: "false"
+            pr_reviewer.require_can_be_split_review: "false"
+            pr_reviewer.require_security_review: "true"
+            pr_reviewer.num_code_suggestions: "4"
+
+            # ===== Review Instructions =====
+            pr_reviewer.extra_instructions: |
+                DO NOT COMMENT ON:
+                - Type hints unless they cause runtime errors
+                - Code style, formatting, naming conventions
+                - "Consider..." or "You might want to..." suggestions
+                - Documentation unless public API behavior changed
+                - Import ordering, logging, comments
+                - Purely preferential suggestions
+                REPO-SPECIFIC:
+                - New exceptions should use subclasses from exceptions.py
+                - New ENV vars must be in .env.example or env.py
+                OUTPUT:
+                - One sentence per issue, include line number
+                - Use GitHub suggested-change blocks for fixes
+                - No preamble, no summaries
+                FOR SMALL PRS (< 25 lines): Only comment on bugs or security issues.
