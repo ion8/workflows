@@ -80,7 +80,8 @@ const {
  */
 function confluenceRequest(method, path, body = null) {
   return new Promise((resolve, reject) => {
-    const url = new URL(path, CONFLUENCE_BASE_URL);
+   const fullUrl = CONFLUENCE_BASE_URL + path;
+   const url = new URL(fullUrl);
     const auth = Buffer.from(`${CONFLUENCE_USER_EMAIL}:${CONFLUENCE_API_TOKEN}`).toString('base64');
 
     const options = {
