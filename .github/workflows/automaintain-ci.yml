@@ -13,7 +13,7 @@ on:
         value: ${{ jobs.create-maintenance-pr.outputs.pr_number }}
     secrets:
       LHCI_GITHUB_APP_TOKEN:
-        required: true
+        required: false
 
 jobs:
   create-maintenance-pr:
@@ -23,6 +23,7 @@ jobs:
       pull-requests: write
     outputs:
       pr_number: ${{ steps.create-pr.outputs.pr_number }}
+      pr_title: ${{ steps.names.outputs.pr_title }}
     steps:
       - uses: actions/checkout@v4
 
@@ -106,3 +107,86 @@ jobs:
       pr_number: ${{ needs.create-maintenance-pr.outputs.pr_number }}
     secrets:
       LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+  # ============================================================================
+  # Slack Notification Job
+  # ============================================================================
+  # Sends a single notification to Slack after all checks complete
+  # - Runs even if previous jobs fail (if: always())
+  # - Reports which checks failed or confirms all passed
+  # - Extensible: Add new checks by updating the needs array and results step
+  # ============================================================================
+  notify-slack:
+    needs: [create-maintenance-pr, call-link-checker, call-lighthouse-ci]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine results
+        id: results
+        run: |
+          FAILED=""
+          
+          # Check if PR creation failed first
+          if [ "${{ needs.create-maintenance-pr.result }}" == "failure" ]; then
+            FAILED="${FAILED}PR Creation, "
+          fi
+          
+          # Check each job result and build list of failures
+          if [ "${{ needs.call-link-checker.result }}" == "failure" ]; then
+            FAILED="${FAILED}Link Checker, "
+          fi
+          
+          if [ "${{ needs.call-lighthouse-ci.result }}" == "failure" ]; then
+            FAILED="${FAILED}Lighthouse, "
+          fi
+          
+          # When adding new checks:
+          # 1. Add the job to the needs array above
+          # 2. Add a check here following the same pattern
+          
+          # Trim trailing comma and space
+          FAILED="${FAILED%, }"
+          
+          # Set outputs for next step
+          if [ -n "$FAILED" ]; then
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "failed_checks=$FAILED" >> $GITHUB_OUTPUT
+          else
+            echo "status=passed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Slack notification
+        env:
+          AUTOMAINTAIN_SLACK_WEBHOOK_URL: ${{ secrets.AUTOMAINTAIN_SLACK_WEBHOOK_URL }}
+          PR_NUMBER: ${{ needs.create-maintenance-pr.outputs.pr_number }}
+          PR_TITLE: ${{ needs.create-maintenance-pr.outputs.pr_title }}
+        run: |
+          DATE=$(date +"%b %d, %Y")
+          REPO="${{ github.repository }}"
+          REPO_URL="https://github.com/${REPO}"
+          
+          # Build message based on status
+          if [ "${{ steps.results.outputs.status }}" == "failed" ]; then
+            EMOJI="🔴"
+            FAILED_CHECKS="${{ steps.results.outputs.failed_checks }}"
+            STATUS_LINE="${EMOJI} Failed: ${FAILED_CHECKS}"
+            
+            # If PR was created, include PR link
+            if [ -n "$PR_NUMBER" ]; then
+              PR_URL="https://github.com/${REPO}/pull/${PR_NUMBER}"
+              MESSAGE="${STATUS_LINE}\n*PR:* <${PR_URL}|${PR_TITLE}>\n*Repo:* <${REPO_URL}|${REPO}>\n*Date:* ${DATE}"
+            else
+              # PR creation failed, no PR link
+              MESSAGE="${STATUS_LINE}\n*Repo:* <${REPO_URL}|${REPO}>\n*Date:* ${DATE}"
+            fi
+          else
+            EMOJI="✅"
+            STATUS_LINE="${EMOJI} All checks passed"
+            PR_URL="https://github.com/${REPO}/pull/${PR_NUMBER}"
+            MESSAGE="${STATUS_LINE}\n*PR:* <${PR_URL}|${PR_TITLE}>\n*Repo:* <${REPO_URL}|${REPO}>\n*Date:* ${DATE}"
+          fi
+          
+          # Send to Slack via webhook
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\": \"${MESSAGE}\"}" \
+            "${AUTOMAINTAIN_SLACK_WEBHOOK_URL}"
