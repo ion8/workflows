@@ -1,0 +1,151 @@
+name: AI PR Review Request
+
+# Reusable workflow. When someone comments `/ai-review` on a PR, it posts a review request in
+# Slack that @mentions the AI reviewer, and the AI reviewer then reviews the PR on GitHub.
+# It never checks out or runs code from the PR.
+#
+# Inputs:
+#   ai_reviewer_slack_user_id         Slack member ID of the AI reviewer
+#                                     (org variable AI_REVIEWER_SLACK_USER_ID)
+# Secrets:
+#   ENGINEERING_PR_SLACK_WEBHOOK_URL  Slack incoming webhook for #ion8-engineering-pr
+#
+# Caller example: see "AI PR Review" in the README.
+
+on:
+  workflow_call:
+    inputs:
+      ai_reviewer_slack_user_id:
+        required: true
+        type: string
+        description: "Slack member ID of the AI reviewer, e.g. U0123ABCDEF"
+    secrets:
+      ENGINEERING_PR_SLACK_WEBHOOK_URL:
+        required: true
+        description: "Slack incoming webhook URL for #ion8-engineering-pr"
+
+permissions: {}
+
+jobs:
+  request-review:
+    name: Request AI review
+    # PR comments starting with /ai-review, from people in the org or invited to the repo.
+    # The "Match the command" step then checks the first line is exactly /ai-review.
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/ai-review') &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
+      github.event.comment.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write # read the PR and its reviews, react 👀 / 😕 on the comment
+    concurrency:
+      group: ai-pr-review-${{ github.repository }}-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.issue.number }}
+      COMMENT_ID: ${{ github.event.comment.id }}
+    steps:
+      - name: Match the command
+        id: match
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          first_line="$(printf '%s\n' "$COMMENT_BODY" | head -n 1 | tr -d '\r')"
+          first_line="$(printf '%s' "$first_line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+          if [ "$first_line" = "/ai-review" ]; then
+            echo "matched=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "The first line isn't exactly /ai-review, so there's nothing to do."
+            echo "matched=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: React 👀 on the comment
+        if: steps.match.outputs.matched == 'true'
+        run: |
+          gh api --method POST "repos/$REPO/issues/comments/$COMMENT_ID/reactions" \
+            -f content=eyes --silent
+
+      - name: Read the PR
+        id: pr
+        if: steps.match.outputs.matched == 'true'
+        run: |
+          gh api "repos/$REPO/pulls/$PR_NUMBER" > "$RUNNER_TEMP/pr.json"
+          if [ "$(jq -r .state "$RUNNER_TEMP/pr.json")" != "open" ]; then
+            echo "PR #$PR_NUMBER is closed, so no review request is posted."
+            gh api --method POST "repos/$REPO/issues/comments/$COMMENT_ID/reactions" \
+              -f content=confused --silent
+            echo "open=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "open=true" >> "$GITHUB_OUTPUT"
+
+          # A marker left by an earlier AI review means this is a re-review
+          marker='<!-- ai-pr-review sha='
+          earlier="$(
+            {
+              gh api "repos/$REPO/pulls/$PR_NUMBER/reviews" --paginate --jq '.[].body'
+              gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq '.[].body'
+            } | grep -cF "$marker" || true
+          )"
+          if [ "$earlier" -gt 0 ]; then
+            echo "kind=re-review" >> "$GITHUB_OUTPUT"
+          else
+            echo "kind=review" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post the review request to Slack
+        if: steps.pr.outputs.open == 'true'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.ENGINEERING_PR_SLACK_WEBHOOK_URL }}
+          AI_REVIEWER_SLACK_USER_ID: ${{ inputs.ai_reviewer_slack_user_id }}
+          REQUESTED_BY: ${{ github.event.comment.user.login }}
+          KIND: ${{ steps.pr.outputs.kind }}
+        run: |
+          if ! printf '%s' "$AI_REVIEWER_SLACK_USER_ID" | grep -Eq '^[UW][A-Z0-9]+$'; then
+            echo "::error::ai_reviewer_slack_user_id must be a Slack member ID like U0123ABCDEF"
+            exit 1
+          fi
+
+          # The title is the only text the PR author wrote, so it goes last, in backticks.
+          # Slack treats & < > as markup, so they're escaped in anything people typed.
+          jq -n \
+            --slurpfile pr "$RUNNER_TEMP/pr.json" \
+            --arg repo "$REPO" \
+            --arg kind "$KIND" \
+            --arg requested_by "$REQUESTED_BY" \
+            --arg reviewer "$AI_REVIEWER_SLACK_USER_ID" \
+            '
+            def esc: gsub("&"; "&amp;") | gsub("<"; "&lt;") | gsub(">"; "&gt;");
+            def apostrophe: [39] | implode;
+            $pr[0] as $p
+            | (if $kind == "re-review" then "🔁 Re-review request" else "👀 Review request" end) as $header
+            | {
+                text: ([
+                  "\($header): \($repo | esc)",
+                  $p.html_url,
+                  "• Author: \($p.user.login | esc) · Asked by: \($requested_by | esc)",
+                  "• Changes: +\($p.additions) / −\($p.deletions) across \($p.changed_files) files",
+                  "<@\($reviewer)> please run the ai-pr-review skill on the PR linked above.",
+                  "Title: `\($p.title | gsub("`"; apostrophe) | esc)`"
+                ] | join("\n"))
+              }
+            ' > "$RUNNER_TEMP/slack.json"
+
+          curl --fail-with-body -sS -X POST \
+            -H 'Content-type: application/json' \
+            --data @"$RUNNER_TEMP/slack.json" \
+            "$SLACK_WEBHOOK_URL"
+
+      - name: React 😕 if the request didn't go through
+        if: failure() && steps.match.outputs.matched == 'true'
+        run: |
+          gh api --method POST "repos/$REPO/issues/comments/$COMMENT_ID/reactions" \
+            -f content=confused --silent || true
