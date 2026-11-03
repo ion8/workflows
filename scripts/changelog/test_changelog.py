@@ -23,6 +23,10 @@ CHANGELOG = """# Changelog
 """
 NOVEMBER_ENTRY = "- Connecting Salesforce works again.\n"
 OCTOBER_ENTRY = "- The dashboard now flags integrations that need reconnecting.\n"
+UNRELEASED = CHANGELOG.replace(
+    "## November 2026", "## Unreleased\n\n### Added\n\n- Faxes log once.\n- Meetings log once.\n\n## November 2026"
+)
+RELEASE_CUT = UNRELEASED.replace("## Unreleased", "## Unreleased\n\n## 0.2.0 - 2026-11-20")
 
 
 def add_after(text, line, new_line):
@@ -184,6 +188,28 @@ def test_entry_added_under_an_older_heading_fails(repo, summary):
 def test_correcting_an_older_entry_passes(repo):
     head = CHANGELOG.replace("need reconnecting", "need to be reconnected")
     assert check_pr(repo, {"CHANGELOG.md": CHANGELOG}, {"CHANGELOG.md": head}) == 0
+
+
+def test_deleting_an_older_entry_passes(repo):
+    head = CHANGELOG.replace(OCTOBER_ENTRY, "")
+    assert check_pr(repo, {"CHANGELOG.md": CHANGELOG}, {"CHANGELOG.md": head}) == 0
+
+
+@pytest.mark.parametrize(
+    "head",
+    [RELEASE_CUT, UNRELEASED.replace("## Unreleased", "## 0.2.0 - 2026-11-20")],
+    ids=["new-unreleased-on-top", "rename-only"],
+)
+def test_releasing_the_unreleased_entries_passes(repo, head):
+    assert check_pr(repo, {"CHANGELOG.md": UNRELEASED}, {"CHANGELOG.md": head}) == 0
+
+
+def test_entry_added_under_a_released_version_fails(repo, summary):
+    head = add_after(RELEASE_CUT, "- Meetings log once.\n", "- Calls log once.")
+    assert check_pr(repo, {"CHANGELOG.md": UNRELEASED}, {"CHANGELOG.md": head}) == 1
+    text = summary.read_text(encoding="utf-8")
+    assert "top heading, `## Unreleased`, not `## 0.2.0 - 2026-11-20`" in text
+    assert "## Unreleased\n\n### Added\n\n- Calls log once." in text
 
 
 def test_new_changelog_with_older_months_passes(repo):
