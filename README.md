@@ -46,6 +46,86 @@ jobs:
 
 **Note:** This workflow uses the organization-level `OPENAI_CODE_REVIEW_API_KEY` environment variable, so no per-repository configuration is needed. The OpenAI API key is managed centrally at the organization level.
 
+# Changelog check and sync
+
+`changelog-check.yml` fails a pull request that neither changes `CHANGELOG.md` nor has the `no changelog` label. If the pull request changes `CHANGELOG.md`, the check also fails on any format error in the file. Pull requests that Dependabot opens pass with no entry.
+
+## Write an entry
+
+Add one bullet under the top heading of `CHANGELOG.md`, in the section that fits. Write it for a customer, in one to three sentences.
+
+```markdown
+## November 2026
+
+### Added
+
+- The dashboard now flags integrations that need reconnecting.
+
+### Changed
+
+- Licenses, Role Management, and Email Mapping are now one Users page.
+
+### Fixed
+
+- Connecting Salesforce works again.
+
+### Removed
+
+- The CSV export on the Calls page is gone. Use the export on the Reports page.
+```
+
+The check enforces these rules:
+
+- A release heading is a month (`## November 2026`), `## Unreleased`, or a version and date (`## 0.2.0 - 2026-11-20`).
+- A section is `### Added`, `### Changed`, `### Fixed`, or `### Removed`.
+- An entry is one line that starts with `- ` and has at most 300 characters.
+- An entry has no org id (`org 123` or `org_id`) and no email address.
+- A new entry goes under the top heading. You can still reword or delete an older entry. For a release, you can rename `## Unreleased` to the version and date, and add an empty `## Unreleased` above it.
+- Above the first `##` heading, you can put a `# Changelog` title and plain text, but no `###` section or `- ` entry.
+- The file is UTF-8, with or without a byte order mark.
+
+If customers would not notice the change, add the `no changelog` label instead. The check runs again when you add or remove the label, with no push.
+
+To check a file on your computer, run this from a clone of this repo:
+
+```sh
+python -I scripts/changelog/check.py --file <path to CHANGELOG.md>
+```
+
+## Add the check to a repo
+
+1. Create the label.
+
+   ```sh
+   gh label create "no changelog" --description "This pull request changes nothing a customer would notice"
+   ```
+
+2. Add this line to `.gitattributes`.
+
+   ```
+   CHANGELOG.md merge=union
+   ```
+
+3. Create `.github/workflows/changelog.yml`.
+
+   ```yaml
+   name: Changelog
+
+   on:
+     pull_request:
+       types: [opened, edited, reopened, synchronize, labeled, unlabeled]
+
+   jobs:
+     changelog:
+       uses: ion8/workflows/.github/workflows/changelog-check.yml@main
+   ```
+
+The check shows on each pull request as `changelog / check`. It runs the scripts from the same ref as the workflow, so a caller at `@<branch>` tests that branch's scripts.
+
+## Fix a conflict in CHANGELOG.md
+
+Two pull requests that add entries at the same line conflict. GitHub's merge and **Update branch** buttons ignore `merge=union`, but git on your computer applies it and keeps both entries. To fix the conflict, run `git pull origin main` on the pull request's branch and push.
+
 # 🔐 Security
 We'll be adding security workflows soon™️.
 
