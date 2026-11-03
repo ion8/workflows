@@ -26,6 +26,7 @@ DEPENDABOT = "dependabot[bot]"
 MAX_LENGTH = 300
 README = "https://github.com/ion8/workflows#changelog-check-and-sync"
 MISSING = f'Add an entry to {PATH}, or add the "{OPT_OUT_LABEL}" label if this change is not user-facing.'
+NOT_UTF8 = f"This line is not UTF-8. Save `{PATH}` as UTF-8."
 _CONFIDENTIAL = re.compile(r"\borg\s*\d+|org_id|[\w.+-]+@[\w-]+(?:\.[\w-]+)+", re.IGNORECASE)
 
 
@@ -94,11 +95,25 @@ def added_under_older_headings(base: list[Release], head: list[Release]) -> list
     return problems
 
 
-def _git(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["git", *args], capture_output=True, text=True, encoding="utf-8")
+def _parse_bytes(data: bytes) -> tuple[list[Release], list[Problem]]:
+    """Parse a CHANGELOG.md from its bytes, with or without a UTF-8 byte order mark.
+
+    A byte that is not UTF-8 adds a problem at its line, and the rest of the
+    file still parses.
+    """
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError as error:
+        releases, problems = parse(data.decode("utf-8-sig", "replace"))
+        return releases, [Problem(data.count(b"\n", 0, error.start) + 1, NOT_UTF8), *problems]
+    return parse(text)
 
 
-def _show(rev: str) -> str | None:
+def _git(*args: str) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(["git", *args], capture_output=True)
+
+
+def _show(rev: str) -> bytes | None:
     shown = _git("show", f"{rev}:{PATH}")
     return shown.stdout if shown.returncode == 0 else None
 
@@ -106,12 +121,12 @@ def _show(rev: str) -> str | None:
 def _git_out(*args: str) -> str:
     done = _git(*args)
     if done.returncode != 0:
-        raise SystemExit(f"git {' '.join(args)} failed: {done.stderr.strip()}")
-    return done.stdout.strip()
+        raise SystemExit(f"git {' '.join(args)} failed: {done.stderr.decode().strip()}")
+    return done.stdout.decode().strip()
 
 
-def _missing_summary(head_text: str | None) -> str:
-    releases = parse(head_text)[0] if head_text else []
+def _missing_summary(head_data: bytes | None) -> str:
+    releases = _parse_bytes(head_data)[0] if head_data else []
     today = date.today()
     top = releases[0].heading if releases else f"{MONTHS[today.month - 1]} {today.year}"
     return (
@@ -167,7 +182,7 @@ def _skip(reason: str) -> int:
 
 
 def check_file(path: str) -> int:
-    releases, problems = parse(Path(path).read_text(encoding="utf-8"))
+    releases, problems = _parse_bytes(Path(path).read_bytes())
     return _report(path, problems + lint(releases))
 
 
@@ -176,20 +191,20 @@ def check_pull_request(base: str, head: str, author: str, labels: list[str]) -> 
         return _skip("Dependabot opened this pull request")
     if OPT_OUT_LABEL in labels:
         return _skip(f'the pull request has the "{OPT_OUT_LABEL}" label')
-    head_text = _show(head)
+    head_data = _show(head)
     if not _git_out("diff", "--name-only", f"{base}...{head}", "--", PATH):
         _error(PATH, f"{MISSING} See {README}")
-        _write_summary(_missing_summary(head_text))
+        _write_summary(_missing_summary(head_data))
         return 1
-    if head_text is None:
+    if head_data is None:
         _error(PATH, f"This pull request deletes {PATH}. Restore it.")
         _write_summary(f"This pull request deletes `{PATH}`. Restore it.")
         return 1
-    releases, problems = parse(head_text)
+    releases, problems = _parse_bytes(head_data)
     problems += lint(releases)
-    base_text = _show(_git_out("merge-base", base, head))
-    if base_text is not None:
-        problems += added_under_older_headings(parse(base_text)[0], releases)
+    base_data = _show(_git_out("merge-base", base, head))
+    if base_data is not None:
+        problems += added_under_older_headings(_parse_bytes(base_data)[0], releases)
     return _report(PATH, problems)
 
 
