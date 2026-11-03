@@ -27,6 +27,7 @@ UNRELEASED = CHANGELOG.replace(
     "## November 2026", "## Unreleased\n\n### Added\n\n- Faxes log once.\n- Meetings log once.\n\n## November 2026"
 )
 RELEASE_CUT = UNRELEASED.replace("## Unreleased", "## Unreleased\n\n## 0.2.0 - 2026-11-20")
+ACCENTED = UNRELEASED.replace("Connecting Salesforce", "Connecting Salesforce in Montréal")
 
 
 def add_after(text, line, new_line):
@@ -57,7 +58,7 @@ class Repo:
 
     def commit(self, files):
         for name, content in files.items():
-            (self.path / name).write_bytes(content.encode("utf-8"))
+            (self.path / name).write_bytes(content if isinstance(content, bytes) else content.encode("utf-8"))
         self.git("add", "-A")
         self.git("commit", "-q", "--allow-empty", "-m", "change")
         return self.git("rev-parse", "HEAD")
@@ -219,6 +220,55 @@ def test_new_changelog_with_older_months_passes(repo):
 def test_crlf_line_endings_pass(repo):
     head = add_after(CHANGELOG, NOVEMBER_ENTRY, "- Meetings log once.").replace("\n", "\r\n")
     assert check_pr(repo, {"CHANGELOG.md": CHANGELOG}, {"CHANGELOG.md": head}) == 0
+
+
+def test_byte_order_mark_is_ignored(repo, tmp_path):
+    head = "\ufeff" + add_after(CHANGELOG, NOVEMBER_ENTRY, "- Meetings log once.").removeprefix("# Changelog\n\n")
+    assert check_pr(repo, {"CHANGELOG.md": CHANGELOG}, {"CHANGELOG.md": head}) == 0
+    assert check_text(tmp_path, head) == 0
+
+
+@pytest.mark.parametrize(
+    ("data", "line"),
+    [(ACCENTED.encode("cp1252"), 14), (CHANGELOG.encode("utf-16"), 1)],
+    ids=["cp1252", "utf-16"],
+)
+def test_file_that_is_not_utf8_fails_and_says_to_save_it_as_utf8(
+    repo, tmp_path, summary, monkeypatch, capsys, data, line
+):
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    path = tmp_path / "CHANGELOG.md"
+    path.write_bytes(data)
+    assert check_pr(repo, {"CHANGELOG.md": UNRELEASED}, {"CHANGELOG.md": data}) == 1
+    assert check.main(["--file", str(path)]) == 1
+    out, err = capsys.readouterr()
+    assert err == ""
+    assert out.count("::error") == 2
+    assert out.count(f"CHANGELOG.md,line={line}::") == 2
+    text = summary.read_text(encoding="utf-8")
+    assert text.count(f"**Line {line}.**") == 2
+    assert text.count("Save `CHANGELOG.md` as UTF-8.") == 2
+    assert "deletes" not in out + text
+
+
+def test_deleting_the_changelog_fails(repo, summary):
+    base = repo.commit({"CHANGELOG.md": CHANGELOG})
+    (repo.path / "CHANGELOG.md").unlink()
+    head = repo.commit({})
+    assert check.main(["--base", base, "--head", head, "--author", "octocat", "--labels", "[]"]) == 1
+    assert "This pull request deletes `CHANGELOG.md`." in summary.read_text(encoding="utf-8")
+
+
+def test_saving_a_changelog_that_is_not_utf8_as_utf8_passes(repo):
+    assert check_pr(repo, {"CHANGELOG.md": ACCENTED.encode("cp1252")}, {"CHANGELOG.md": ACCENTED}) == 0
+
+
+def test_missing_entry_beside_a_changelog_that_is_not_utf8_names_the_top_heading(repo, summary):
+    base = {"CHANGELOG.md": ACCENTED.encode("cp1252"), "app.py": "x = 1\n"}
+    assert check_pr(repo, base, {"app.py": "x = 2\n"}) == 1
+    text = summary.read_text(encoding="utf-8")
+    assert text.startswith(MISSING)
+    assert "## Unreleased" in text
 
 
 def test_two_identical_month_headings_pass(repo):
