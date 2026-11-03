@@ -9,7 +9,10 @@ import os
 import re
 import subprocess
 import sys
+from collections import Counter
+from collections.abc import Iterable
 from datetime import date
+from itertools import chain
 from pathlib import Path
 
 # python -I leaves this script's folder off sys.path.
@@ -58,19 +61,29 @@ def _by_heading(releases: list[Release]) -> dict[str, list[tuple[Section, Entry]
     return grouped
 
 
+def _texts(entries: Iterable[tuple[Section, Entry]]) -> Counter[str]:
+    return Counter(entry.text for _, entry in entries)
+
+
 def added_under_older_headings(base: list[Release], head: list[Release]) -> list[Problem]:
+    """Return a problem for each heading below the top one that gained entries.
+
+    An entry is new when its text is nowhere in the base file, and gone when
+    its text is nowhere in the head file. A heading gained entries when it has
+    more new entries than gone ones.
+    """
     if not head:
         return []
     top = head[0].heading
-    before = _by_heading(base)
+    before, after = _by_heading(base), _by_heading(head)
+    base_texts, head_texts = _texts(chain(*before.values())), _texts(chain(*after.values()))
     problems = []
-    for heading, entries in _by_heading(head).items():
-        old = before.get(heading, [])
-        gained_entries = len(entries) > len(old)
-        if heading == top or not gained_entries:
+    for heading, entries in after.items():
+        added = _texts(entries) - base_texts
+        removed = _texts(before.get(heading, [])) - head_texts
+        if heading == top or added.total() <= removed.total():
             continue
-        old_texts = {entry.text for _, entry in old}
-        section, entry = next(((s, e) for s, e in entries if e.text not in old_texts), entries[-1])
+        section, entry = next((s, e) for s, e in entries if e.text in added)
         problems.append(
             Problem(
                 entry.line,
