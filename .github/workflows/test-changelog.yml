@@ -1,0 +1,27 @@
+name: Test changelog scripts
+
+on:
+  pull_request:
+    paths:
+      - "scripts/changelog/**"
+      - ".github/workflows/test-changelog.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - run: python -m pip install pytest==9.2.0
+
+      - run: python -I -m pytest -q scripts/changelog
