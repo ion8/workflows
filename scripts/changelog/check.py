@@ -94,7 +94,7 @@ def _parse_bytes(data: bytes) -> tuple[list[Release], list[Problem]]:
         text = data.decode("utf-8-sig")
     except UnicodeDecodeError as error:
         releases, problems = parse(data.decode("utf-8-sig", "replace"))
-        return releases, [Problem(data.count(b"\n", 0, error.start) + 1, NOT_UTF8), *problems]
+        return releases, [Problem(error.object.count(b"\n", 0, error.start) + 1, NOT_UTF8), *problems]
     return parse(text)
 
 
