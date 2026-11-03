@@ -67,12 +67,6 @@ def _texts(entries: Iterable[tuple[Section, Entry]]) -> Counter[str]:
 
 
 def added_under_older_headings(base: list[Release], head: list[Release]) -> list[Problem]:
-    """Return a problem for each heading below the top one that gained entries.
-
-    An entry is new when its text is nowhere in the base file, and gone when
-    its text is nowhere in the head file. A heading gained entries when it has
-    more new entries than gone ones.
-    """
     if not head:
         return []
     top = head[0].heading
@@ -80,11 +74,11 @@ def added_under_older_headings(base: list[Release], head: list[Release]) -> list
     base_texts, head_texts = _texts(chain(*before.values())), _texts(chain(*after.values()))
     problems = []
     for heading, entries in after.items():
-        added = _texts(entries) - base_texts
-        removed = _texts(before.get(heading, [])) - head_texts
-        if heading == top or added.total() <= removed.total():
+        new = _texts(entries) - base_texts
+        gone = _texts(before.get(heading, [])) - head_texts
+        if heading == top or new.total() <= gone.total():
             continue
-        section, entry = next((s, e) for s, e in entries if e.text in added)
+        section, entry = next((s, e) for s, e in entries if e.text in new)
         problems.append(
             Problem(
                 entry.line,
@@ -96,11 +90,6 @@ def added_under_older_headings(base: list[Release], head: list[Release]) -> list
 
 
 def _parse_bytes(data: bytes) -> tuple[list[Release], list[Problem]]:
-    """Parse a CHANGELOG.md from its bytes, with or without a UTF-8 byte order mark.
-
-    A byte that is not UTF-8 adds a problem at its line, and the rest of the
-    file still parses.
-    """
     try:
         text = data.decode("utf-8-sig")
     except UnicodeDecodeError as error:
