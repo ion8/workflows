@@ -80,8 +80,9 @@ The check enforces these rules:
 - A section is `### Added`, `### Changed`, `### Fixed`, or `### Removed`.
 - An entry is one line that starts with `- ` and has at most 300 characters.
 - An entry has no org id (`org 123` or `org_id`) and no email address.
-- A new entry goes under the top heading. You can still change the wording of an older entry.
+- A new entry goes under the top heading. You can still reword or delete an older entry. For a release, you can rename `## Unreleased` to the version and date, and add an empty `## Unreleased` above it.
 - Above the first `##` heading, you can put a `# Changelog` title and plain text, but no `###` section or `- ` entry.
+- The file is UTF-8, with or without a byte order mark.
 
 If customers would not notice the change, add the `no changelog` label instead. The check runs again when you add or remove the label, with no push.
 
