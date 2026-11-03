@@ -27,7 +27,7 @@ UNRELEASED = CHANGELOG.replace(
     "## November 2026", "## Unreleased\n\n### Added\n\n- Faxes log once.\n- Meetings log once.\n\n## November 2026"
 )
 RELEASE_CUT = UNRELEASED.replace("## Unreleased", "## Unreleased\n\n## 0.2.0 - 2026-11-20")
-ACCENTED = UNRELEASED.replace("Connecting Salesforce", "Connecting Salesforce in Montréal")
+SMART_QUOTES = UNRELEASED.replace("- Connecting Salesforce", "- “Connect Salesforce”")
 
 
 def add_after(text, line, new_line):
@@ -230,8 +230,12 @@ def test_byte_order_mark_is_ignored(repo, tmp_path):
 
 @pytest.mark.parametrize(
     ("data", "line"),
-    [(ACCENTED.encode("cp1252"), 14), (CHANGELOG.encode("utf-16"), 1)],
-    ids=["cp1252", "utf-16"],
+    [
+        (SMART_QUOTES.encode("cp1252"), 14),
+        (b"\xef\xbb\xbf" + SMART_QUOTES.encode("cp1252"), 14),
+        (CHANGELOG.encode("utf-16"), 1),
+    ],
+    ids=["cp1252", "cp1252-after-a-utf-8-bom", "utf-16"],
 )
 def test_file_that_is_not_utf8_fails_and_says_to_save_it_as_utf8(
     repo, tmp_path, summary, monkeypatch, capsys, data, line
@@ -260,11 +264,11 @@ def test_deleting_the_changelog_fails(repo, summary):
 
 
 def test_saving_a_changelog_that_is_not_utf8_as_utf8_passes(repo):
-    assert check_pr(repo, {"CHANGELOG.md": ACCENTED.encode("cp1252")}, {"CHANGELOG.md": ACCENTED}) == 0
+    assert check_pr(repo, {"CHANGELOG.md": SMART_QUOTES.encode("cp1252")}, {"CHANGELOG.md": SMART_QUOTES}) == 0
 
 
 def test_missing_entry_beside_a_changelog_that_is_not_utf8_names_the_top_heading(repo, summary):
-    base = {"CHANGELOG.md": ACCENTED.encode("cp1252"), "app.py": "x = 1\n"}
+    base = {"CHANGELOG.md": SMART_QUOTES.encode("cp1252"), "app.py": "x = 1\n"}
     assert check_pr(repo, base, {"app.py": "x = 2\n"}) == 1
     text = summary.read_text(encoding="utf-8")
     assert text.startswith(MISSING)
